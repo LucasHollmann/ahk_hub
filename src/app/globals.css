@@ -1,15 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f0f0dc;
-  --background-secondary: #dfdfce;
+  --background: #f5f5d9;
+  --menu-secondary: #e4e4b2;
+  --menu-dark: #31312d;
   --dark: #251307;
   --main: #842b8c;
   --main-gradient: #be4dc9;
   --secondary: #e9e9de;
   --secondary-gradient: #ffffff;
-  --text-black: #000000;
-  --text-white: #ffffff;
 
 }
 
@@ -59,18 +58,37 @@ body {
   transform: translateY(-2px);
 }
 
-.bg-main {
-  background: linear-gradient(135deg, var(--main), var(--main-gradient));
-}
-
-.bg-secondary {
-  background: linear-gradient(135deg, var(--secondary), var(--secondary-gradient));
-}
-
 .bg-default {
   background-color: var(--background);
 }
 
-.bg-secondary {
-  background-color: var(--background-secondary);
+.bg-menu-secondary {
+  background-color: var(--menu-secondary);
+}
+
+.bg-menu-dark {
+  background-color: var(--menu-dark);
+}
+
+.button-topbar {
+  background: transparent;
+  color: var(--background);
+  border-radius: 0.25rem;
+  height: 100%;
+  padding: 0 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.button-topbar:hover {
+  background-color: color-mix(in srgb, var(--dark) 10%, transparent);
+}
+
+.button-topbar:active {
+  background-color: color-mix(in srgb, var(--dark) 18%, transparent);
 }

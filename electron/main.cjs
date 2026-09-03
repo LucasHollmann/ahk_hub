@@ -1,7 +1,9 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, Menu } = require("electron");
 const path = require("node:path");
 
 const isDevelopment = !app.isPackaged;
+
+Menu.setApplicationMenu(null);
 
 function createWindow() {
   const window = new BrowserWindow({
@@ -18,7 +20,7 @@ function createWindow() {
   });
 
   if (isDevelopment) {
-    window.loadURL("http://localhost:3000");
+    window.loadURL("http://localhost:3010");
     window.webContents.openDevTools();
   } else {
     window.loadFile(path.join(__dirname, "..", "out", "index.html"));
