@@ -14,6 +14,7 @@
     "dist": "npm run build && electron-builder"
   },
   "dependencies": {
+    "get-windows": "^9.3.0",
     "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -23,13 +24,13 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
+    "electron": "^38.1.0",
+    "electron-builder": "^26.0.12",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "concurrently": "^9.2.1",
-    "electron": "^38.1.0",
-    "electron-builder": "^26.0.12",
     "wait-on": "^8.0.4"
   },
   "build": {

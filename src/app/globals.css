@@ -1,14 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f5d9;
-  --menu-secondary: #e4e4b2;
-  --menu-dark: #31312d;
-  --dark: #251307;
-  --main: #842b8c;
-  --main-gradient: #be4dc9;
-  --secondary: #e9e9de;
-  --secondary-gradient: #ffffff;
+  --background: #0f1117;
+  --foreground: #e7e9f0;
+  --menu-secondary: #1c1f2b;
+  --menu-dark: #090a0f;
+  --dark: #000000;
+  --light: #ffffff;
+  --main: #22d3ee;
+  --main-gradient: #6366f1;
+  --secondary: #1c1f2b;
+  --secondary-gradient: #2a2e3d;
 
 }
 
@@ -33,15 +35,16 @@ body {
 }
 
 .button-main:hover {
-  box-shadow: 0 6px 10px color-mix(in srgb, var(--dark) 60%, transparent);
+  box-shadow: 0 6px 10px color-mix(in srgb, var(--main) 60%, transparent);
   filter: brightness(1.08);
   transform: translateY(-2px);
 }
 
 .button-secondary {
   background: linear-gradient(135deg, var(--secondary), var(--secondary-gradient));
-  box-shadow: 0 4px 5px color-mix(in srgb, var(--dark) 30%, transparent);
-  color: black;
+  box-shadow: 0 4px 5px color-mix(in srgb, var(--dark) 40%, transparent);
+  color: var(--foreground);
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
   border-radius: 1rem;
   padding: 10px 20px;
   text-align: center;
@@ -53,8 +56,8 @@ body {
 }
 
 .button-secondary:hover {
-  box-shadow: 0 6px 10px color-mix(in srgb, var(--dark) 40%, transparent);
-  filter: brightness(1.04);
+  box-shadow: 0 6px 10px color-mix(in srgb, var(--dark) 50%, transparent);
+  filter: brightness(1.15);
   transform: translateY(-2px);
 }
 
@@ -72,7 +75,7 @@ body {
 
 .button-topbar {
   background: transparent;
-  color: var(--background);
+  color: var(--foreground);
   border-radius: 0.25rem;
   height: 100%;
   padding: 0 10px;
@@ -86,9 +89,10 @@ body {
 }
 
 .button-topbar:hover {
-  background-color: color-mix(in srgb, var(--dark) 10%, transparent);
+  background-color: color-mix(in srgb, var(--light) 10%, transparent);
+  color: var(--main);
 }
 
 .button-topbar:active {
-  background-color: color-mix(in srgb, var(--dark) 18%, transparent);
+  background-color: color-mix(in srgb, var(--light) 18%, transparent);
 }
