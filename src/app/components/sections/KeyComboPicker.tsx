@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useTranslation } from "../../i18n/I18nContext";
 
 type Modifier = "Ctrl" | "Shift" | "Alt" | "Win";
 
@@ -30,12 +31,29 @@ function formatKeyName(key: string) {
   return key;
 }
 
+function parseCombo(combo: string) {
+  const parts = combo.split("+");
+  const key = parts.pop() ?? "";
+  const modifiers: Record<Modifier, boolean> = {
+    Ctrl: false,
+    Shift: false,
+    Alt: false,
+    Win: false,
+  };
+  for (const part of parts) {
+    if (part in modifiers) modifiers[part as Modifier] = true;
+  }
+  return { modifiers, key };
+}
+
 type Props = {
   resetSignal: number;
   onChange: (combo: string) => void;
+  initialValue?: string;
 };
 
-export default function KeyComboPicker({ resetSignal, onChange }: Props) {
+export default function KeyComboPicker({ resetSignal, onChange, initialValue }: Props) {
+  const { t } = useTranslation();
   const [modifiers, setModifiers] = useState<Record<Modifier, boolean>>({
     Ctrl: false,
     Shift: false,
@@ -50,9 +68,15 @@ export default function KeyComboPicker({ resetSignal, onChange }: Props) {
   const modifierMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setModifiers({ Ctrl: false, Shift: false, Alt: false, Win: false });
-    setKey("");
-  }, [resetSignal]);
+    if (initialValue) {
+      const parsed = parseCombo(initialValue);
+      setModifiers(parsed.modifiers);
+      setKey(parsed.key);
+    } else {
+      setModifiers({ Ctrl: false, Shift: false, Alt: false, Win: false });
+      setKey("");
+    }
+  }, [resetSignal, initialValue]);
 
   useEffect(() => {
     const parts = MODIFIERS.filter((m) => modifiers[m]);
@@ -132,7 +156,7 @@ export default function KeyComboPicker({ resetSignal, onChange }: Props) {
           onClick={() => setIsModifierMenuOpen((prev) => !prev)}
         >
           {MODIFIERS.filter((m) => modifiers[m]).join("+") ||
-            "Sem modificadores"}
+            t("keyCombo.noModifiers", "Sem modificadores")}
         </button>
         {isModifierMenuOpen && (
           <div className="absolute z-10 mt-1 w-44 bg-menu-secondary rounded-lg shadow-lg p-2 flex flex-col gap-1">
@@ -171,10 +195,10 @@ export default function KeyComboPicker({ resetSignal, onChange }: Props) {
       <input
         ref={keyInputRef}
         className="bg-menu-secondary rounded-lg px-3 py-2 outline-none cursor-pointer caret-transparent w-40 h-10"
-        value={isCapturing ? "Pressione uma tecla..." : key}
+        value={isCapturing ? t("keyCombo.pressingKey", "Pressione uma tecla...") : key}
         onMouseDown={startCapturing}
         readOnly
-        placeholder="Clique e pressione a tecla"
+        placeholder={t("keyCombo.placeholder", "Clique e pressione a tecla")}
       />
     </div>
   );

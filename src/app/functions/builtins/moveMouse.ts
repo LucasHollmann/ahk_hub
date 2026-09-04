@@ -1,13 +1,13 @@
 import type { FunctionMeta } from "../types";
 import { toSystemFunctionName } from "../ahk";
 
-const NAME = "Clicar";
+const NAME = "Mover Mouse";
 const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 
 export const meta: FunctionMeta = {
-  id: "click",
+  id: "moveMouse",
   name: NAME,
-  description: "Realiza um clique (simples ou duplo) do mouse em uma coordenada.",
+  description: "Move o cursor do mouse para uma coordenada, sem clicar.",
   params: [
     { key: "x", label: "X", type: "number" },
     { key: "y", label: "Y", type: "number" },
@@ -16,22 +16,19 @@ export const meta: FunctionMeta = {
       label: "Coordenada relativa à tela toda (senão, à janela ativa)",
       type: "boolean",
     },
-    { key: "doubleClick", label: "Clique duplo", type: "boolean" },
   ],
   usableDirectly: true,
   toAhkDeclaration: () =>
     [
-      `${AHK_FUNCTION_NAME}(x, y, fullScreen, doubleClick) {`,
+      `${AHK_FUNCTION_NAME}(x, y, fullScreen) {`,
       '    CoordMode "Mouse", fullScreen ? "Screen" : "Window"',
-      "    count := doubleClick ? 2 : 1",
-      "    Click x, y, , count",
+      "    MouseMove x, y",
       "}",
     ].join("\n"),
   toAhkCall: (values) => {
     const x = Number(values.x ?? 0);
     const y = Number(values.y ?? 0);
     const fullScreen = values.fullScreen ? 1 : 0;
-    const doubleClick = values.doubleClick ? 1 : 0;
-    return `${AHK_FUNCTION_NAME}(${x}, ${y}, ${fullScreen}, ${doubleClick})`;
+    return `${AHK_FUNCTION_NAME}(${x}, ${y}, ${fullScreen})`;
   },
 };

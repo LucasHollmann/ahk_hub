@@ -9,4 +9,7 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.on("capture-position:result", listener);
     return () => ipcRenderer.removeListener("capture-position:result", listener);
   },
+  saveScript: (content, path) => ipcRenderer.invoke("save-script", content, path),
+  runScript: (path) => ipcRenderer.invoke("run-script", path),
+  loadScript: () => ipcRenderer.invoke("load-script"),
 });
