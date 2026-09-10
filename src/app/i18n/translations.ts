@@ -137,6 +137,31 @@ export const en: Record<string, string> = {
   "functionsSection.addStep": "Add step",
   "functionsSection.cancel": "Cancel",
 
+  // flow control (Loop / Conditional) steps
+  "functionsSection.flowLoopLabel": "Loop",
+  "functionsSection.flowLoopDescription": "Repeats the following steps while a condition is true.",
+  "functionsSection.flowConditionalLabel": "Conditional",
+  "functionsSection.flowConditionalDescription": "Runs the following steps only if a condition is true.",
+  "functionsSection.flowLoopSummary": "Loop while {{condition}}",
+  "functionsSection.flowConditionalSummary": "If {{condition}}",
+  "functionsSection.flowBodyLoopTitle": "Loop body",
+  "functionsSection.flowBodyTitle": "Body (if true)",
+  "functionsSection.flowElseBodyTitle": "Else (optional)",
+  "functionsSection.conditionKindLabel": "Condition type",
+  "functionsSection.conditionKindVariable": "Compare a variable",
+  "functionsSection.conditionKindCode": "Raw code",
+  "functionsSection.conditionTargetLabel": "Variable",
+  "functionsSection.conditionOperatorLabel": "Operator",
+  "functionsSection.conditionValueLabel": "Compare to",
+  "functionsSection.conditionCodeLabel": "Condition (AHK code)",
+  "functionsSection.conditionCodePlaceholder": "e.g. A_Index < 10",
+  "functionsSection.conditionGroupBasic": "Basic",
+
+  // condition picker groups
+  "functionCategories.mouseConditions": "Mouse",
+  "functionCategories.windowConditions": "Windows",
+  "functionCategories.systemConditions": "System",
+
   // function picker (popup)
   "functionPicker.searchPlaceholder": "Search for a function...",
   "functionPicker.noResults": "No functions found.",
@@ -302,14 +327,76 @@ export const en: Record<string, string> = {
   "functions.media.params.action.options.Stop": "Stop",
   "functions.media.params.volume.label": "Exact volume in % (used only in 'Set exact volume')",
 
-  // functions.loop
-  "functions.loop.name": "Repeat",
-  "functions.loop.description": "Repeats the following steps a number of times. (coming soon)",
-  "functions.loop.params.times.label": "Number of repetitions",
+  // functions.condActiveWindow
+  "functions.condActiveWindow.name": "Active window contains",
+  "functions.condActiveWindow.description": "Checks whether the active window's title contains a text.",
+  "functions.condActiveWindow.params.titleContains.label": "Text the title must contain",
 
-  // functions.conditional
-  "functions.conditional.name": "If",
-  "functions.conditional.description":
-    "Runs the following steps only if a condition is true. (coming soon)",
-  "functions.conditional.params.condition.label": "Condition (AHK code)",
+  // functions.condWindowExists
+  "functions.condWindowExists.name": "Window exists",
+  "functions.condWindowExists.description": "Checks whether a window with the given title exists.",
+  "functions.condWindowExists.params.title.label": "Window title",
+
+  // functions.condWindowState
+  "functions.condWindowState.name": "Window state",
+  "functions.condWindowState.description": "Checks whether a window is maximized, minimized, or normal.",
+  "functions.condWindowState.params.title.label": "Window title (empty = active window)",
+  "functions.condWindowState.params.state.label": "State",
+  "functions.condWindowState.params.state.options.maximized": "Maximized",
+  "functions.condWindowState.params.state.options.minimized": "Minimized",
+  "functions.condWindowState.params.state.options.normal": "Normal",
+
+  // functions.condKeyState
+  "functions.condKeyState.name": "Key pressed",
+  "functions.condKeyState.description": "Checks whether a key is currently pressed.",
+  "functions.condKeyState.params.key.label": "Key name (e.g. a, Enter, LButton)",
+
+  // functions.condToggleKeyState
+  "functions.condToggleKeyState.name": "Toggle key active",
+  "functions.condToggleKeyState.description": "Checks whether CapsLock, NumLock, or ScrollLock is on.",
+  "functions.condToggleKeyState.params.key.label": "Key",
+
+  // functions.condMousePosition
+  "functions.condMousePosition.name": "Mouse position",
+  "functions.condMousePosition.description": "Checks whether the mouse cursor is at a specific coordinate.",
+  "functions.condMousePosition.params.x.label": "X",
+  "functions.condMousePosition.params.y.label": "Y",
+  "functions.condMousePosition.params.fullScreen.label":
+    "Coordinate relative to the whole screen (otherwise, to the active window)",
+
+  // functions.condPixelColor
+  "functions.condPixelColor.name": "Pixel color",
+  "functions.condPixelColor.description": "Checks whether a screen pixel has a specific color.",
+  "functions.condPixelColor.params.x.label": "X",
+  "functions.condPixelColor.params.y.label": "Y",
+  "functions.condPixelColor.params.color.label": "Color (e.g. 0xFF0000)",
+
+  // functions.condClipboard
+  "functions.condClipboard.name": "Clipboard contains",
+  "functions.condClipboard.description": "Checks whether the clipboard contents contain a text.",
+  "functions.condClipboard.params.text.label": "Text it must contain",
+
+  // functions.condIdleTime
+  "functions.condIdleTime.name": "Idle time",
+  "functions.condIdleTime.description": "Checks how long the mouse/keyboard have been idle.",
+  "functions.condIdleTime.params.ms.label": "Time (ms)",
+  "functions.condIdleTime.params.comparison.label": "Comparison",
+  "functions.condIdleTime.params.comparison.options.>": "Greater than",
+  "functions.condIdleTime.params.comparison.options.<": "Less than",
+
+  // functions.condTimeOfDay
+  "functions.condTimeOfDay.name": "Time of day",
+  "functions.condTimeOfDay.description":
+    "Checks whether the current time falls within a range (e.g. 09:00 to 18:00).",
+  "functions.condTimeOfDay.params.from.label": "From (HH:mm)",
+  "functions.condTimeOfDay.params.to.label": "To (HH:mm)",
+
+  // functions.condVolume
+  "functions.condVolume.name": "System volume",
+  "functions.condVolume.description": "Compares the current system volume (0 to 100) with a value.",
+  "functions.condVolume.params.comparison.label": "Comparison",
+  "functions.condVolume.params.comparison.options.=": "Equal to",
+  "functions.condVolume.params.comparison.options.>": "Greater than",
+  "functions.condVolume.params.comparison.options.<": "Less than",
+  "functions.condVolume.params.value.label": "Value (0-100)",
 };

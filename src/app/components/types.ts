@@ -1,4 +1,10 @@
-import type { ArgSource, ArgValues, FunctionMeta, HeaderParamDef, ParamValues } from "../functions/types";
+import type {
+  ArgSource,
+  ArgValues,
+  FunctionMeta,
+  HeaderParamDef,
+  ParamValues,
+} from "../functions/types";
 
 export type VariableType = "text" | "number" | "boolean";
 export type VariableScope = "local" | "global";
@@ -15,10 +21,29 @@ export type VariableAction =
       scope: VariableScope;
     };
 
+export type ConditionOperator = "=" | "!=" | ">" | "<" | ">=" | "<=";
+
+/** A boolean expression used by flow-control steps (Loop/Conditional): a comparison against a known variable, raw AHK code, or one of the ready-made condition kinds (mouse position, active window, key state...). */
+export type ConditionValue =
+  | { kind: "variable"; targetName: string; operator: ConditionOperator; value: ArgSource }
+  | { kind: "code"; code: string }
+  | { kind: "builtin"; conditionId: string; params: ParamValues };
+
+export type FlowControlType = "loop" | "conditional";
+
 export type SerializedStep =
   | { kind: "customFunction"; functionName: string; args: ArgValues }
   | { kind: "builtin"; functionId: string; args: ArgValues }
-  | ({ kind: "variableAction" } & VariableAction);
+  | ({ kind: "variableAction" } & VariableAction)
+  | {
+      kind: "flowControl";
+      flowType: FlowControlType;
+      condition: ConditionValue;
+      /** Steps that run inside the loop / when the condition is true. */
+      body: SerializedStep[];
+      /** Conditional-only: steps that run when the condition is false. */
+      elseBody?: SerializedStep[];
+    };
 
 export type FunctionEntry = {
   id: number;

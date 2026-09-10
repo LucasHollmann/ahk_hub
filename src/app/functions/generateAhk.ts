@@ -1,7 +1,14 @@
 import type { FunctionEntry, GlobalVariable, Remapping } from "../components/types";
 import { expandHeaderParamsToCallParams, type FunctionMeta } from "./types";
 import { BUILTIN_FUNCTIONS } from "./builtins";
-import { comboToHotkey, formatAhkArgLiteral, formatAhkCallArgs, toSystemFunctionName } from "./ahk";
+import { BUILTIN_CONDITIONS } from "./conditions";
+import {
+  comboToHotkey,
+  formatAhkArgLiteral,
+  formatAhkCallArgs,
+  toConditionFunctionName,
+  toSystemFunctionName,
+} from "./ahk";
 import { AHK_HUB_HEADER, serializeStateComment } from "./serialize";
 
 function referencesCall(code: string, name: string): boolean {
@@ -39,6 +46,13 @@ function collectUsedFunctions(remappings: Remapping[], functions: FunctionEntry[
     for (const meta of BUILTIN_FUNCTIONS) {
       if (!meta.toAhkDeclaration || usedBuiltins.has(meta.id)) continue;
       if (referencesCall(entry.code, toSystemFunctionName(meta.name))) {
+        usedBuiltins.set(meta.id, meta);
+      }
+    }
+
+    for (const meta of BUILTIN_CONDITIONS) {
+      if (!meta.toAhkDeclaration || usedBuiltins.has(meta.id)) continue;
+      if (referencesCall(entry.code, toConditionFunctionName(meta.name))) {
         usedBuiltins.set(meta.id, meta);
       }
     }
