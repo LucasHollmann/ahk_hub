@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "open",
   name: NAME,
+  category: "system",
   description: "Abre um programa, arquivo ou link.",
   params: [{ key: "path", label: "Caminho ou link", type: "text" }],
   usableDirectly: true,

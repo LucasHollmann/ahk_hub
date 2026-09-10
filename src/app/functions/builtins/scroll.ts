@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "scroll",
   name: NAME,
+  category: "input",
   description: "Rola a roda do mouse para cima ou para baixo.",
   params: [
     {

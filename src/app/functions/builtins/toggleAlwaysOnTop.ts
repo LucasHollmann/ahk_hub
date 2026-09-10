@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "toggleAlwaysOnTop",
   name: NAME,
+  category: "window",
   description:
     "Ativa ou desativa o modo 'sempre visível' (always on top) de uma janela pelo título, ou a janela ativa.",
   params: [

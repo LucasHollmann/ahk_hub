@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "media",
   name: NAME,
+  category: "system",
   description: "Controla volume e reprodução de mídia (aumentar, mudo, play/pause, próxima faixa, etc).",
   params: [
     {

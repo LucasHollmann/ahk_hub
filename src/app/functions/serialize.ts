@@ -1,6 +1,6 @@
-import type { FunctionEntry, Remapping, RemappingDestination } from "../components/types";
+import type { FunctionEntry, GlobalVariable, Remapping, RemappingDestination } from "../components/types";
 import { BUILTIN_FUNCTIONS } from "./builtins";
-import type { ParamValues } from "./types";
+import type { ArgValues, ParamValues } from "./types";
 
 export const AHK_HUB_HEADER = "; Gerado automaticamente pelo AHK Hub (AutoHotkey v2)";
 const STATE_BEGIN = "; === AHK_HUB_STATE_BEGIN ===";
@@ -9,7 +9,7 @@ const STATE_END = "; === AHK_HUB_STATE_END ===";
 type SerializedDestination =
   | { kind: "key"; combo: string }
   | { kind: "builtin"; functionId: string; params: ParamValues }
-  | { kind: "customFunction"; name: string };
+  | { kind: "customFunction"; name: string; args: ArgValues };
 
 type SerializedRemapping = {
   id: number;
@@ -20,6 +20,7 @@ type SerializedRemapping = {
 type SerializedState = {
   remappings: SerializedRemapping[];
   functions: FunctionEntry[];
+  variables: GlobalVariable[];
 };
 
 function toBase64(str: string): string {
@@ -50,7 +51,8 @@ function serializeDestination(destination: RemappingDestination): SerializedDest
 /** Appends a hidden, machine-readable snapshot of the app state as an AHK comment block. */
 export function serializeStateComment(
   remappings: Remapping[],
-  functions: FunctionEntry[]
+  functions: FunctionEntry[],
+  variables: GlobalVariable[] = []
 ): string[] {
   const state: SerializedState = {
     remappings: remappings.map((r) => ({
@@ -59,6 +61,7 @@ export function serializeStateComment(
       destination: serializeDestination(r.destination),
     })),
     functions,
+    variables,
   };
 
   const encoded = toBase64(JSON.stringify(state));
@@ -66,7 +69,7 @@ export function serializeStateComment(
 }
 
 export type ParseResult =
-  | { ok: true; remappings: Remapping[]; functions: FunctionEntry[] }
+  | { ok: true; remappings: Remapping[]; functions: FunctionEntry[]; variables: GlobalVariable[] }
   | { ok: false; error: string };
 
 export function parseAhkScript(content: string): ParseResult {
@@ -111,12 +114,25 @@ export function parseAhkScript(content: string): ParseResult {
 
     const destination = r.destination;
     if (destination.kind === "key" && typeof destination.combo === "string") {
-      remappings.push({ id: r.id, from: r.from, destination: { kind: "key", combo: destination.combo } });
+      // Legacy format, from before "send a key" became the KeyPress builtin.
+      const meta = BUILTIN_FUNCTIONS.find((f) => f.id === "keyPress");
+      if (!meta) {
+        return { ok: false, error: 'função "keyPress" não encontrada' };
+      }
+      remappings.push({
+        id: r.id,
+        from: r.from,
+        destination: {
+          kind: "builtin",
+          meta,
+          params: { combo: destination.combo, duration: 0 },
+        },
+      });
     } else if (destination.kind === "customFunction" && typeof destination.name === "string") {
       remappings.push({
         id: r.id,
         from: r.from,
-        destination: { kind: "customFunction", name: destination.name },
+        destination: { kind: "customFunction", name: destination.name, args: destination.args ?? {} },
       });
     } else if (destination.kind === "builtin" && typeof destination.functionId === "string") {
       const meta = BUILTIN_FUNCTIONS.find((f) => f.id === destination.functionId);
@@ -138,8 +154,33 @@ export function parseAhkScript(content: string): ParseResult {
     if (!f || typeof f.id !== "number" || typeof f.name !== "string") {
       return { ok: false, error: "função personalizada inválida" };
     }
-    functions.push({ id: f.id, name: f.name, description: String(f.description ?? "") });
+    const builder =
+      f.builder && f.builder.mode === "steps" && Array.isArray(f.builder.steps)
+        ? { mode: "steps" as const, steps: f.builder.steps }
+        : undefined;
+
+    functions.push({
+      id: f.id,
+      name: f.name,
+      description: String(f.description ?? ""),
+      code: String(f.code ?? ""),
+      params: Array.isArray(f.params) ? f.params : [],
+      ...(builder ? { builder } : {}),
+    });
   }
 
-  return { ok: true, remappings, functions };
+  const variables: GlobalVariable[] = [];
+  for (const v of Array.isArray(state.variables) ? state.variables : []) {
+    if (!v || typeof v.id !== "number" || typeof v.name !== "string") {
+      return { ok: false, error: "variável inválida" };
+    }
+    variables.push({
+      id: v.id,
+      name: v.name,
+      type: v.type === "number" || v.type === "boolean" ? v.type : "text",
+      initialValue: v.initialValue ?? "",
+    });
+  }
+
+  return { ok: true, remappings, functions, variables };
 }

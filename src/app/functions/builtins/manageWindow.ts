@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "manageWindow",
   name: NAME,
+  category: "window",
   description:
     "Minimiza, maximiza, fecha ou encaixa em metades/cantos/centro da tela uma janela pelo título ou a janela ativa.",
   params: [

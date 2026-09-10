@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "click",
   name: NAME,
+  category: "input",
   description: "Realiza um clique (simples ou duplo) do mouse em uma coordenada.",
   params: [
     { key: "x", label: "X", type: "number" },

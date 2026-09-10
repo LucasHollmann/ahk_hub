@@ -1,12 +1,19 @@
-import type { FunctionEntry, Remapping } from "../components/types";
-import type { FunctionMeta } from "./types";
-import { comboToHotkey, comboToSendTarget, quoteAhkString, toUserFunctionName } from "./ahk";
+import type { FunctionEntry, GlobalVariable, Remapping } from "../components/types";
+import { expandHeaderParamsToCallParams, type FunctionMeta } from "./types";
+import { BUILTIN_FUNCTIONS } from "./builtins";
+import { comboToHotkey, formatAhkArgLiteral, formatAhkCallArgs, toSystemFunctionName } from "./ahk";
 import { AHK_HUB_HEADER, serializeStateComment } from "./serialize";
 
-export function generateAhkScript(
-  remappings: Remapping[],
-  functions: FunctionEntry[]
-): string {
+function referencesCall(code: string, name: string): boolean {
+  return new RegExp(`\\b${name}\\s*\\(`).test(code);
+}
+
+/**
+ * A custom function's code can itself call builtins or other custom functions
+ * (via the step builder or hand-written code), so usage has to be resolved
+ * transitively from the remapping entry points rather than just read off them.
+ */
+function collectUsedFunctions(remappings: Remapping[], functions: FunctionEntry[]) {
   const usedBuiltins = new Map<string, FunctionMeta>();
   const usedCustomFunctions = new Set<string>();
 
@@ -18,6 +25,43 @@ export function generateAhkScript(
     }
   }
 
+  const queue = [...usedCustomFunctions];
+  const processed = new Set<string>();
+
+  while (queue.length > 0) {
+    const name = queue.pop()!;
+    if (processed.has(name)) continue;
+    processed.add(name);
+
+    const entry = functions.find((f) => f.name === name);
+    if (!entry?.code) continue;
+
+    for (const meta of BUILTIN_FUNCTIONS) {
+      if (!meta.toAhkDeclaration || usedBuiltins.has(meta.id)) continue;
+      if (referencesCall(entry.code, toSystemFunctionName(meta.name))) {
+        usedBuiltins.set(meta.id, meta);
+      }
+    }
+
+    for (const other of functions) {
+      if (usedCustomFunctions.has(other.name)) continue;
+      if (referencesCall(entry.code, other.name)) {
+        usedCustomFunctions.add(other.name);
+        queue.push(other.name);
+      }
+    }
+  }
+
+  return { usedBuiltins, usedCustomFunctions };
+}
+
+export function generateAhkScript(
+  remappings: Remapping[],
+  functions: FunctionEntry[],
+  variables: GlobalVariable[] = []
+): string {
+  const { usedBuiltins, usedCustomFunctions } = collectUsedFunctions(remappings, functions);
+
   const lines: string[] = [
     AHK_HUB_HEADER,
     "#Requires AutoHotkey v2.0",
@@ -25,6 +69,14 @@ export function generateAhkScript(
     'SendMode "Input"',
     "",
   ];
+
+  if (variables.length > 0) {
+    lines.push("; ==== Variáveis globais ====", "");
+    for (const v of variables) {
+      lines.push(`${v.name} := ${formatAhkArgLiteral({ key: v.name, label: v.name, type: v.type }, v.initialValue)}`);
+    }
+    lines.push("");
+  }
 
   if (usedBuiltins.size > 0 || usedCustomFunctions.size > 0) {
     lines.push("; ==== Declaração das funções ====", "");
@@ -36,11 +88,11 @@ export function generateAhkScript(
 
     for (const name of usedCustomFunctions) {
       const entry = functions.find((f) => f.name === name);
-      lines.push(`${toUserFunctionName(name)}:`);
-      lines.push(
-        `; TODO: implementar "${name}"${entry?.description ? ` - ${entry.description}` : ""}`
-      );
-      lines.push("return");
+      if (entry?.code?.trim()) {
+        lines.push(entry.code.trim());
+      } else {
+        lines.push(`; TODO: implementar "${name}"`);
+      }
       lines.push("");
     }
   }
@@ -51,18 +103,20 @@ export function generateAhkScript(
     const hotkey = comboToHotkey(r.from);
     const { destination } = r;
 
-    if (destination.kind === "key") {
-      lines.push(`${hotkey}::Send ${quoteAhkString(comboToSendTarget(destination.combo))}`);
-    } else if (destination.kind === "builtin" && destination.meta.toAhkCall) {
+    if (destination.kind === "builtin" && destination.meta.toAhkCall) {
       lines.push(`${hotkey}::${destination.meta.toAhkCall(destination.params)}`);
     } else if (destination.kind === "customFunction") {
-      lines.push(`${hotkey}::Gosub ${toUserFunctionName(destination.name)}`);
+      const targetParams = expandHeaderParamsToCallParams(
+        functions.find((f) => f.name === destination.name)?.params ?? []
+      );
+      const argsStr = targetParams.length > 0 ? formatAhkCallArgs(targetParams, destination.args) : "";
+      lines.push(`${hotkey}::${destination.name}(${argsStr})`);
     }
 
     lines.push("");
   }
 
-  lines.push(...serializeStateComment(remappings, functions));
+  lines.push(...serializeStateComment(remappings, functions, variables));
 
   return lines.join("\n");
 }

@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "wait",
   name: NAME,
+  category: "system",
   description: "Aguarda um tempo determinado (em milissegundos) antes de continuar.",
   params: [{ key: "ms", label: "Tempo (ms)", type: "number" }],
   usableDirectly: false,

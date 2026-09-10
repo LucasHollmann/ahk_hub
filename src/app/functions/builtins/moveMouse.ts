@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "moveMouse",
   name: NAME,
+  category: "input",
   description: "Move o cursor do mouse para uma coordenada, sem clicar.",
   params: [
     { key: "x", label: "X", type: "number" },

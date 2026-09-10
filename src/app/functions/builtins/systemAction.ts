@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "systemAction",
   name: NAME,
+  category: "system",
   description:
     "Bloqueia a tela, desconecta, desliga, reinicia, hiberna ou suspende o computador.",
   params: [

@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "activateWindow",
   name: NAME,
+  category: "window",
   description: "Ativa (foca) uma janela pelo título, podendo excluir janelas com um texto específico.",
   params: [
     { key: "title", label: "Título da janela", type: "text" },

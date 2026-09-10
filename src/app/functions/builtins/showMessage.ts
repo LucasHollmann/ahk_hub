@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "showMessage",
   name: NAME,
+  category: "system",
   description: "Mostra um popup com um texto na tela.",
   params: [{ key: "text", label: "Texto", type: "text" }],
   usableDirectly: true,

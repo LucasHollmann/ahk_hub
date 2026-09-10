@@ -1,3 +1,4 @@
+import { meta as keyPressMeta } from "./keypress";
 import { meta as writeMeta } from "./write";
 import { meta as clickMeta } from "./click";
 import { meta as openMeta } from "./open";
@@ -11,9 +12,12 @@ import { meta as scrollMeta } from "./scroll";
 import { meta as dragMeta } from "./drag";
 import { meta as systemActionMeta } from "./systemAction";
 import { meta as mediaMeta } from "./media";
+import { meta as loopMeta } from "./loop";
+import { meta as conditionalMeta } from "./conditional";
 import type { FunctionMeta } from "../types";
 
 export const BUILTIN_FUNCTIONS: FunctionMeta[] = [
+  keyPressMeta,
   writeMeta,
   clickMeta,
   openMeta,
@@ -27,4 +31,6 @@ export const BUILTIN_FUNCTIONS: FunctionMeta[] = [
   dragMeta,
   systemActionMeta,
   mediaMeta,
+  loopMeta,
+  conditionalMeta,
 ];

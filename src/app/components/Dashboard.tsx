@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import RemappingsSection from "./sections/RemappingsSection";
 import FunctionsSection from "./sections/FunctionsSection";
-import type { FunctionEntry, Remapping } from "./types";
+import VariablesSection from "./sections/VariablesSection";
+import type { FunctionEntry, GlobalVariable, Remapping } from "./types";
 import { generateAhkScript } from "../functions/generateAhk";
 import { parseAhkScript } from "../functions/serialize";
 import { useTranslation, type Locale } from "../i18n/I18nContext";
 
-type Tab = "remappings" | "functions";
+type Tab = "remappings" | "functions" | "variables";
 
 function basename(filePath: string) {
   return filePath.split(/[\\/]/).pop() ?? filePath;
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>("remappings");
   const [functions, setFunctions] = useState<FunctionEntry[]>([]);
   const [remappings, setRemappings] = useState<Remapping[]>([]);
+  const [variables, setVariables] = useState<GlobalVariable[]>([]);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [lastSavedPath, setLastSavedPath] = useState<string | null>(null);
   const nextIdRef = useRef(1);
@@ -46,6 +48,21 @@ export default function Dashboard() {
     setFunctions((prev) => [...prev, { id: generateId(), ...entry }]);
   }
 
+  function updateFunction(id: number, entry: Omit<FunctionEntry, "id">) {
+    const previous = functions.find((f) => f.id === id);
+    setFunctions((prev) => prev.map((f) => (f.id === id ? { id, ...entry } : f)));
+
+    if (previous && previous.name !== entry.name) {
+      setRemappings((prev) =>
+        prev.map((r) =>
+          r.destination.kind === "customFunction" && r.destination.name === previous.name
+            ? { ...r, destination: { ...r.destination, name: entry.name } }
+            : r
+        )
+      );
+    }
+  }
+
   function removeFunction(id: number) {
     setFunctions((prev) => prev.filter((f) => f.id !== id));
   }
@@ -66,8 +83,27 @@ export default function Dashboard() {
     setRemappings((prev) => prev.filter((r) => r.id !== id));
   }
 
+  function addVariable(variable: Omit<GlobalVariable, "id">) {
+    setVariables((prev) => [...prev, { id: generateId(), ...variable }]);
+  }
+
+  function updateVariable(id: number, variable: Omit<GlobalVariable, "id">) {
+    setVariables((prev) => prev.map((v) => (v.id === id ? { id, ...variable } : v)));
+  }
+
+  function removeVariable(id: number) {
+    setVariables((prev) => prev.filter((v) => v.id !== id));
+  }
+
+  /** Used by the Functions tab's "criar variável (global)" step: registers the variable here too, if it isn't already. */
+  function registerGlobalVariable(variable: Omit<GlobalVariable, "id">) {
+    setVariables((prev) =>
+      prev.some((v) => v.name === variable.name) ? prev : [...prev, { id: generateId(), ...variable }]
+    );
+  }
+
   async function saveAndRun(forcePathPrompt: boolean) {
-    const script = generateAhkScript(remappings, functions);
+    const script = generateAhkScript(remappings, functions, variables);
 
     if (!window.desktop?.saveScript || !window.desktop?.runScript) {
       setSaveStatus(t("dashboard.desktopOnlySave", "Salvar só está disponível no aplicativo desktop."));
@@ -105,7 +141,7 @@ export default function Dashboard() {
     if (!lastSavedPath) return;
     if (!window.desktop?.saveScript || !window.desktop?.runScript) return;
 
-    const script = generateAhkScript(nextRemappings, functions);
+    const script = generateAhkScript(nextRemappings, functions, variables);
     const saveResult = await window.desktop.saveScript(script, lastSavedPath);
     if (saveResult.status !== "saved") {
       setSaveStatus(
@@ -175,6 +211,7 @@ export default function Dashboard() {
 
     setFunctions(parsed.functions);
     setRemappings(parsed.remappings);
+    setVariables(parsed.variables);
     setLastSavedPath(result.path);
     applyTitle(result.path);
     setSaveStatus(t("dashboard.loadedFrom", "Script carregado de {{path}}", { path: result.path }));
@@ -255,6 +292,14 @@ export default function Dashboard() {
         >
           {t("dashboard.tabFunctions", "Funções")}
         </button>
+        <button
+          className={`outline-none focus:outline-none ${
+            activeTab === "variables" ? "button-main" : "button-secondary"
+          }`}
+          onClick={() => setActiveTab("variables")}
+        >
+          {t("dashboard.tabVariables", "Variáveis globais")}
+        </button>
       </div>
 
       <div className="flex-1 min-h-0 p-4">
@@ -267,11 +312,21 @@ export default function Dashboard() {
               onUpdate={updateRemapping}
               onRemove={removeRemapping}
             />
-          ) : (
+          ) : activeTab === "functions" ? (
             <FunctionsSection
               functions={functions}
               onAdd={addFunction}
+              onUpdate={updateFunction}
               onRemove={removeFunction}
+              globalVariables={variables}
+              onRegisterGlobalVariable={registerGlobalVariable}
+            />
+          ) : (
+            <VariablesSection
+              variables={variables}
+              onAddVariable={addVariable}
+              onUpdateVariable={updateVariable}
+              onRemoveVariable={removeVariable}
             />
           )}
         </div>

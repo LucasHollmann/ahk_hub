@@ -7,8 +7,9 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "write",
   name: NAME,
+  category: "input",
   description: "Digita um texto definido automaticamente.",
-  params: [{ key: "text", label: "Texto", type: "text" }],
+  params: [{ key: "text", label: "Texto", type: "text", sendEscape: true }],
   usableDirectly: true,
   toAhkDeclaration: () => `${AHK_FUNCTION_NAME}(text) {\n    Send text\n}`,
   toAhkCall: (values) =>

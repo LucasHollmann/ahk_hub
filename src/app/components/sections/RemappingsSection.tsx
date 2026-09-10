@@ -3,42 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import KeyComboPicker from "./KeyComboPicker";
 import ParamsFields from "./ParamsFields";
+import StepArgsFields from "./StepArgsFields";
+import FunctionPicker, { type FunctionPickerItem } from "./FunctionPicker";
 import type { FunctionEntry, Remapping } from "../types";
 import { BUILTIN_FUNCTIONS } from "../../functions/builtins";
 import {
+  areArgsFilled,
+  areParamsFilled,
+  defaultArgValues,
+  defaultParamValues,
+  expandHeaderParamsToCallParams,
   getParamEntries,
+  tFunctionCategoryLabel,
+  tFunctionDescription,
   tFunctionName,
-  type FunctionMeta,
+  type ArgSource,
+  type ArgValues,
+  type ParamEntry,
   type ParamValues,
 } from "../../functions/types";
 import { useTranslation, type Translate } from "../../i18n/I18nContext";
 
 const DIRECT_BUILTIN_FUNCTIONS = BUILTIN_FUNCTIONS.filter((f) => f.usableDirectly);
-
-function defaultParamValues(meta: FunctionMeta): ParamValues {
-  const values: ParamValues = {};
-  for (const param of meta.params) {
-    values[param.key] = param.type === "boolean" ? false : "";
-  }
-  return values;
-}
-
-type DestinationType = "key" | "function";
-
-function InfoIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="w-3 h-3 opacity-70"
-      fill="none"
-      stroke="currentColor"
-    >
-      <circle cx="8" cy="8" r="6.5" strokeWidth="1.2" />
-      <line x1="8" y1="7.2" x2="8" y2="11" strokeWidth="1.2" strokeLinecap="round" />
-      <circle cx="8" cy="5" r="0.8" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
   return (
@@ -55,17 +41,39 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
 
 function destinationLabel(remapping: Remapping, t: Translate) {
   const { destination } = remapping;
-  if (destination.kind === "key") return destination.combo;
   if (destination.kind === "builtin") return tFunctionName(t, destination.meta);
   return destination.name;
 }
 
+function customFunctionEntries(
+  destination: Extract<Remapping["destination"], { kind: "customFunction" }>,
+  functions: FunctionEntry[]
+): ParamEntry[] {
+  const target = functions.find((f) => f.name === destination.name);
+  if (!target) return [];
+  return expandHeaderParamsToCallParams(target.params)
+    .map((p) => {
+      const arg = destination.args[p.key];
+      if (!arg) return null;
+      const value =
+        arg.kind === "literal"
+          ? String(arg.value)
+          : arg.kind === "headerParam"
+            ? arg.paramKey
+            : arg.variableName;
+      return { label: p.label, value };
+    })
+    .filter((e): e is ParamEntry => e !== null);
+}
+
 function RemappingItem({
   remapping,
+  functions,
   onEdit,
   onRemove,
 }: {
   remapping: Remapping;
+  functions: FunctionEntry[];
   onEdit: (remapping: Remapping) => void;
   onRemove: (id: number) => void;
 }) {
@@ -75,7 +83,9 @@ function RemappingItem({
   const entries =
     destination.kind === "builtin"
       ? getParamEntries(destination.meta, destination.params, t)
-      : [];
+      : destination.kind === "customFunction"
+        ? customFunctionEntries(destination, functions)
+        : [];
 
   return (
     <div className="bg-menu-secondary rounded-lg px-4 py-2 flex flex-col gap-1">
@@ -149,16 +159,36 @@ export default function RemappingsSection({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [fromInitialValue, setFromInitialValue] = useState<string | undefined>();
-  const [toKeyInitialValue, setToKeyInitialValue] = useState<string | undefined>();
   const [from, setFrom] = useState("");
-  const [destinationType, setDestinationType] = useState<DestinationType>("key");
-  const [toKey, setToKey] = useState("");
   const [toFunction, setToFunction] = useState("");
   const [paramValues, setParamValues] = useState<ParamValues>({});
+  const [toFunctionArgs, setToFunctionArgs] = useState<ArgValues>({});
   const [resetSignal, setResetSignal] = useState(0);
   const pendingEditParamsRef = useRef<{ metaId: string; values: ParamValues } | null>(null);
+  const pendingEditArgsRef = useRef<{ functionName: string; args: ArgValues } | null>(null);
 
   const selectedBuiltin = DIRECT_BUILTIN_FUNCTIONS.find((f) => f.name === toFunction);
+  const selectedCustomFunction = !selectedBuiltin
+    ? functions.find((f) => f.name === toFunction)
+    : undefined;
+  const customCallParams = selectedCustomFunction
+    ? expandHeaderParamsToCallParams(selectedCustomFunction.params)
+    : [];
+
+  const toFunctionPickerItems: FunctionPickerItem[] = [
+    ...DIRECT_BUILTIN_FUNCTIONS.map((f) => ({
+      value: f.name,
+      label: tFunctionName(t, f),
+      description: tFunctionDescription(t, f),
+      group: tFunctionCategoryLabel(t, f.category),
+    })),
+    ...functions.map((f) => ({
+      value: f.name,
+      label: f.name,
+      description: f.description || undefined,
+      group: t("remappings.groupCustom", "Personalizadas"),
+    })),
+  ];
 
   useEffect(() => {
     if (selectedBuiltin && pendingEditParamsRef.current?.metaId === selectedBuiltin.id) {
@@ -169,36 +199,33 @@ export default function RemappingsSection({
     }
   }, [selectedBuiltin]);
 
-  const to = destinationType === "key" ? toKey : toFunction;
+  useEffect(() => {
+    if (selectedCustomFunction && pendingEditArgsRef.current?.functionName === selectedCustomFunction.name) {
+      setToFunctionArgs(pendingEditArgsRef.current.args);
+      pendingEditArgsRef.current = null;
+    } else {
+      setToFunctionArgs(selectedCustomFunction ? defaultArgValues(customCallParams) : {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCustomFunction]);
 
   const paramsFilled =
-    !selectedBuiltin ||
-    selectedBuiltin.params.every((p) =>
-      p.type === "boolean" || p.optional
-        ? true
-        : String(paramValues[p.key] ?? "").trim() !== ""
-    );
+    (!selectedBuiltin || areParamsFilled(selectedBuiltin, paramValues)) &&
+    (!selectedCustomFunction || areArgsFilled(customCallParams, toFunctionArgs));
 
   function resetForm() {
     setEditingId(null);
     setFromInitialValue(undefined);
-    setToKeyInitialValue(undefined);
-    setDestinationType("key");
     setToFunction("");
     setResetSignal((s) => s + 1);
   }
 
   function submitRemapping() {
-    if (!from || !to || !paramsFilled) return;
+    if (!from || !toFunction || !paramsFilled) return;
 
-    let destination: Remapping["destination"];
-    if (destinationType === "key") {
-      destination = { kind: "key", combo: toKey };
-    } else if (selectedBuiltin) {
-      destination = { kind: "builtin", meta: selectedBuiltin, params: { ...paramValues } };
-    } else {
-      destination = { kind: "customFunction", name: toFunction };
-    }
+    const destination: Remapping["destination"] = selectedBuiltin
+      ? { kind: "builtin", meta: selectedBuiltin, params: { ...paramValues } }
+      : { kind: "customFunction", name: toFunction, args: { ...toFunctionArgs } };
 
     if (editingId !== null) {
       onUpdate(editingId, { from, destination });
@@ -225,21 +252,17 @@ export default function RemappingsSection({
     setFromInitialValue(remapping.from);
 
     const { destination } = remapping;
-    if (destination.kind === "key") {
-      setDestinationType("key");
-      setToKeyInitialValue(destination.combo);
-      setToFunction("");
-    } else if (destination.kind === "builtin") {
-      setDestinationType("function");
+    if (destination.kind === "builtin") {
       pendingEditParamsRef.current = {
         metaId: destination.meta.id,
         values: { ...destination.params },
       };
-      setToKeyInitialValue(undefined);
       setToFunction(destination.meta.name);
     } else {
-      setDestinationType("function");
-      setToKeyInitialValue(undefined);
+      pendingEditArgsRef.current = {
+        functionName: destination.name,
+        args: { ...destination.args },
+      };
       setToFunction(destination.name);
     }
 
@@ -249,6 +272,10 @@ export default function RemappingsSection({
 
   function setParamValue(key: string, value: string | number | boolean) {
     setParamValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function setToFunctionArg(key: string, arg: ArgSource) {
+    setToFunctionArgs((prev) => ({ ...prev, [key]: arg }));
   }
 
   return (
@@ -261,6 +288,7 @@ export default function RemappingsSection({
           className="button-secondary flex items-center gap-1.5"
           onClick={openNewForm}
         >
+          {t("remappings.addRemapping", "Adicionar novo")}
           <svg
             viewBox="0 0 16 16"
             className="w-3.5 h-3.5"
@@ -270,7 +298,6 @@ export default function RemappingsSection({
             <line x1="8" y1="2.5" x2="8" y2="13.5" strokeWidth="1.8" strokeLinecap="round" />
             <line x1="2.5" y1="8" x2="13.5" y2="8" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
-          {t("remappings.addRemapping", "Adicionar novo")}
         </button>
       </div>
 
@@ -302,84 +329,40 @@ export default function RemappingsSection({
               <span className="pb-2 opacity-60">→</span>
 
               <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm">
-                    {destinationType === "key"
-                      ? t("remappings.destKey", "Tecla de destino")
-                      : t("remappings.destFunction", "Função de destino")}
-                  </label>
-                  <div className="flex gap-1 bg-menu-secondary rounded-md p-0.5 text-xs">
-                    <button
-                      type="button"
-                      title={t(
-                        "remappings.tabKeyTooltip",
-                        "Remapeamento simples, tecla para tecla (1 para 1)"
-                      )}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded outline-none focus:outline-none cursor-pointer ${
-                        destinationType === "key"
-                          ? "bg-(--main) text-white"
-                          : "opacity-60"
-                      }`}
-                      onClick={() => setDestinationType("key")}
-                    >
-                      {t("remappings.tabKey", "Tecla")}
-                      <InfoIcon />
-                    </button>
-                    <button
-                      type="button"
-                      title={t(
-                        "remappings.tabFunctionTooltip",
-                        "Remapeamento complexo: executa uma função com múltiplos passos, condicionais, etc."
-                      )}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded outline-none focus:outline-none cursor-pointer ${
-                        destinationType === "function"
-                          ? "bg-(--main) text-white"
-                          : "opacity-60"
-                      }`}
-                      onClick={() => setDestinationType("function")}
-                    >
-                      {t("remappings.tabFunction", "Função")}
-                      <InfoIcon />
-                    </button>
-                  </div>
-                </div>
+                <label className="text-sm">
+                  {t("remappings.destFunction", "Função de destino")}
+                </label>
 
-                {destinationType === "key" ? (
-                  <KeyComboPicker
-                    resetSignal={resetSignal}
-                    initialValue={toKeyInitialValue}
-                    onChange={setToKey}
-                  />
-                ) : (
-                  <select
-                    className="bg-menu-secondary rounded-lg px-3 py-2 outline-none cursor-pointer w-56 h-10 appearance-none"
-                    value={toFunction}
-                    onChange={(e) => setToFunction(e.target.value)}
-                  >
-                    <option value="">{t("remappings.selectFunction", "Selecione uma função")}</option>
-                    <optgroup label={t("remappings.groupDefault", "Padrão")}>
-                      {DIRECT_BUILTIN_FUNCTIONS.map((f) => (
-                        <option key={f.id} value={f.name}>
-                          {tFunctionName(t, f)}
-                        </option>
-                      ))}
-                    </optgroup>
-                    {functions.length > 0 && (
-                      <optgroup label={t("remappings.groupCustom", "Personalizadas")}>
-                        {functions.map((f) => (
-                          <option key={f.id} value={f.name}>
-                            {f.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                  </select>
-                )}
+                <FunctionPicker
+                  items={toFunctionPickerItems}
+                  value={toFunction}
+                  onChange={setToFunction}
+                  placeholder={t("remappings.selectFunction", "Selecione uma função")}
+                  className="w-56"
+                />
               </div>
             </div>
 
             {selectedBuiltin && selectedBuiltin.params.length > 0 && (
-              <ParamsFields meta={selectedBuiltin} values={paramValues} onChange={setParamValue} />
+              <ParamsFields
+                meta={selectedBuiltin}
+                values={paramValues}
+                onChange={setParamValue}
+                resetSignal={resetSignal}
+              />
+            )}
+
+            {selectedCustomFunction && customCallParams.length > 0 && (
+              <StepArgsFields
+                params={customCallParams}
+                headerParams={[]}
+                values={toFunctionArgs}
+                onChange={setToFunctionArg}
+                resetSignal={resetSignal}
+                title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                  name: selectedCustomFunction.name,
+                })}
+              />
             )}
 
             <div className="flex gap-2 justify-end">
@@ -388,7 +371,7 @@ export default function RemappingsSection({
               </button>
               <button
                 className="button-main disabled:opacity-40 disabled:cursor-not-allowed"
-                disabled={!from || !to || !paramsFilled}
+                disabled={!from || !toFunction || !paramsFilled}
                 onClick={submitRemapping}
               >
                 {editingId !== null ? t("remappings.save", "Salvar") : t("remappings.add", "Adicionar")}
@@ -405,7 +388,13 @@ export default function RemappingsSection({
           </p>
         )}
         {remappings.map((r) => (
-          <RemappingItem key={r.id} remapping={r} onEdit={startEdit} onRemove={onRemove} />
+          <RemappingItem
+            key={r.id}
+            remapping={r}
+            functions={functions}
+            onEdit={startEdit}
+            onRemove={onRemove}
+          />
         ))}
       </div>
     </div>

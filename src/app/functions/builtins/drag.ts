@@ -7,6 +7,7 @@ const AHK_FUNCTION_NAME = toSystemFunctionName(NAME);
 export const meta: FunctionMeta = {
   id: "drag",
   name: NAME,
+  category: "input",
   description: "Arrasta o mouse de uma coordenada até outra (clique, move, solta).",
   params: [
     { key: "x", label: "X inicial", type: "number" },

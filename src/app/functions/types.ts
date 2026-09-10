@@ -1,4 +1,4 @@
-export type ParamType = "text" | "number" | "boolean" | "select";
+export type ParamType = "text" | "number" | "boolean" | "select" | "keyCombo";
 
 export type ParamOption = { value: string; label: string };
 
@@ -10,15 +10,123 @@ export type ParamDef = {
   optional?: boolean;
   /** Required when type is "select" — the choices offered to the user. */
   options?: ParamOption[];
+  /** When true, literal text values are escaped for `Send` (e.g. `{`, `%`) before being embedded in AHK code. */
+  sendEscape?: boolean;
 };
 
+/**
+ * Types a user-defined function header parameter can have — every scalar type a callable
+ * function's own params can have, plus "coordinate": a screen position, the other param
+ * "type" that existing functions use (Clicar, Arrastar, Mover Mouse...), represented as an
+ * X/Y pair rather than a single value.
+ */
+export type HeaderParamType = ParamType | "coordinate";
+
+export type HeaderParamDef = {
+  key: string;
+  label: string;
+  type: HeaderParamType;
+  /** Required when type is "select" — the choices offered to the user. */
+  options?: ParamOption[];
+};
+
+/**
+ * A value passed as an argument to a function call within a step body: typed in directly,
+ * forwarded from one of the enclosing function's header parameters, or forwarded from a
+ * variable — local (declared earlier in the same function's steps) or global (registered
+ * in the "Variáveis globais" tab).
+ */
+export type ArgSource =
+  | { kind: "literal"; value: string | number | boolean }
+  | { kind: "headerParam"; paramKey: string }
+  | { kind: "localVariable"; variableName: string }
+  | { kind: "globalVariable"; variableName: string };
+
+export type ArgValues = Record<string, ArgSource>;
+
+export function defaultArgValues(params: ParamDef[]): ArgValues {
+  const values: ArgValues = {};
+  for (const param of params) {
+    values[param.key] = { kind: "literal", value: param.type === "boolean" ? false : "" };
+  }
+  return values;
+}
+
+export function areArgsFilled(params: ParamDef[], values: ArgValues): boolean {
+  return params.every((p) => {
+    const arg = values[p.key];
+    if (!arg) return Boolean(p.optional);
+    if (arg.kind !== "literal") return true;
+    if (p.type === "boolean" || p.optional) return true;
+    return String(arg.value ?? "").trim() !== "";
+  });
+}
+
+/**
+ * Header params a given target param can be filled from — matched by type, since AHK values
+ * carry no richer type info. For "select" params, the option sets must match exactly too,
+ * since forwarding a value the target doesn't recognize as one of its choices is meaningless.
+ * "coordinate" header params aren't offered here — they're an X/Y pair, matched separately
+ * against coordinate pairs via `compatibleCoordinateHeaderParams`.
+ */
+export function compatibleHeaderParams(
+  headerParams: HeaderParamDef[],
+  target: ParamDef
+): HeaderParamDef[] {
+  return headerParams.filter((hp) => {
+    if (hp.type !== target.type) return false;
+    if (hp.type !== "select") return true;
+    const hpValues = new Set((hp.options ?? []).map((o) => o.value));
+    const targetValues = (target.options ?? []).map((o) => o.value);
+    return hpValues.size === targetValues.length && targetValues.every((v) => hpValues.has(v));
+  });
+}
+
+/** "coordinate" header params — candidates to forward into a target's X/Y coordinate pair as a unit. */
+export function compatibleCoordinateHeaderParams(headerParams: HeaderParamDef[]): HeaderParamDef[] {
+  return headerParams.filter((hp) => hp.type === "coordinate");
+}
+
+/**
+ * Expands a function's header parameters into the plain call-argument slots a caller sees:
+ * scalar params pass through as-is, while a "coordinate" param becomes two number slots
+ * (`${key}X`, `${key}Y`) — the same naming convention `getCoordinatePairs` already recognizes,
+ * so a coordinate header param can itself be called like any other coordinate-taking function.
+ */
+export function expandHeaderParamsToCallParams(headerParams: HeaderParamDef[]): ParamDef[] {
+  return headerParams.flatMap((p): ParamDef[] =>
+    p.type === "coordinate"
+      ? [
+          { key: `${p.key}X`, label: `${p.label} X`, type: "number" },
+          { key: `${p.key}Y`, label: `${p.label} Y`, type: "number" },
+        ]
+      : [{ key: p.key, label: p.label, type: p.type, options: p.options }]
+  );
+}
+
 export type ParamValues = Record<string, string | number | boolean>;
+
+/** Groups builtins in pickers — "input" (keyboard/mouse), "window", "system" (misc/media), "flow" (loops/conditionals, steps only). */
+export type FunctionCategoryId = "input" | "window" | "system" | "flow";
+
+export const FUNCTION_CATEGORY_LABELS: Record<FunctionCategoryId, string> = {
+  input: "Entradas básicas",
+  window: "Janelas",
+  system: "Sistema",
+  flow: "Controle de fluxo",
+};
+
+export function tFunctionCategoryLabel(t: Translate, category: FunctionCategoryId): string {
+  return t(`functionCategories.${category}`, FUNCTION_CATEGORY_LABELS[category]);
+}
 
 export type FunctionMeta = {
   id: string;
   name: string;
   description: string;
   params: ParamDef[];
+  /** Groups this builtin in pickers, alongside "Personalizadas" and "Variáveis". */
+  category: FunctionCategoryId;
   /** Whether this function can be mapped directly to a hotkey. False means it only makes sense as a step inside another function (e.g. "Esperar"). */
   usableDirectly: boolean;
   /** Returns the AHK function definition for this builtin (declared once, before any hotkey uses it). */
@@ -26,6 +134,20 @@ export type FunctionMeta = {
   /** Returns the call expression (e.g. `controller_function_Clicar(120, 340, 0)`) used at the hotkey site. */
   toAhkCall?: (values: ParamValues) => string;
 };
+
+export function defaultParamValues(meta: FunctionMeta): ParamValues {
+  const values: ParamValues = {};
+  for (const param of meta.params) {
+    values[param.key] = param.type === "boolean" ? false : "";
+  }
+  return values;
+}
+
+export function areParamsFilled(meta: FunctionMeta, values: ParamValues): boolean {
+  return meta.params.every((p) =>
+    p.type === "boolean" || p.optional ? true : String(values[p.key] ?? "").trim() !== ""
+  );
+}
 
 export type ParamEntry = { label: string; value: string };
 

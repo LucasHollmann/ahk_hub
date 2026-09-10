@@ -12,8 +12,9 @@ import {
   type ParamValues,
 } from "../../functions/types";
 import { useTranslation, type Translate } from "../../i18n/I18nContext";
+import KeyComboPicker from "./KeyComboPicker";
 
-function CoordinateField({
+export function CoordinateField({
   functionId,
   pair,
   values,
@@ -152,9 +153,10 @@ type Props = {
   meta: FunctionMeta;
   values: ParamValues;
   onChange: (key: string, value: string | number | boolean) => void;
+  resetSignal: number;
 };
 
-export default function ParamsFields({ meta, values, onChange }: Props) {
+export default function ParamsFields({ meta, values, onChange, resetSignal }: Props) {
   const { t } = useTranslation();
   const coordinatePairs = getCoordinatePairs(meta.params);
   const hasFullScreenToggle = meta.params.some((p) => p.key === "fullScreen");
@@ -207,6 +209,15 @@ export default function ParamsFields({ meta, values, onChange }: Props) {
               </span>
               {tParamLabel(t, meta.id, param)}
             </label>
+          ) : param.type === "keyCombo" ? (
+            <>
+              <label className="text-xs opacity-70">{tParamLabel(t, meta.id, param)}</label>
+              <KeyComboPicker
+                resetSignal={resetSignal}
+                initialValue={String(values[param.key] ?? "")}
+                onChange={(combo) => onChange(param.key, combo)}
+              />
+            </>
           ) : param.type === "select" ? (
             <>
               <label className="text-xs opacity-70">
