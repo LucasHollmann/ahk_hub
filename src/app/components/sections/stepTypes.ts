@@ -41,7 +41,7 @@ export type MenuItemTarget =
 
 export type MenuItem = { id: number; label: string; target: MenuItemTarget };
 
-export type GuiControlType = "text" | "button" | "edit" | "checkbox" | "dropdown";
+export type GuiControlType = "text" | "button" | "edit" | "checkbox" | "dropdown" | "code";
 
 /** A control added to a Gui created by a "createGui" step. */
 export type GuiControl =
@@ -68,7 +68,8 @@ export type GuiControl =
       color?: string;
     }
   | { id: number; type: "checkbox"; label: string; checked: boolean; x?: number; y?: number; color?: string }
-  | { id: number; type: "dropdown"; options: string[]; x?: number; y?: number; width?: number; color?: string };
+  | { id: number; type: "dropdown"; options: string[]; x?: number; y?: number; width?: number; color?: string }
+  | { id: number; type: "code"; code: string };
 
 export type Step =
   | { id: number; kind: "customFunction"; functionName: string; args: ArgValues }
@@ -446,14 +447,17 @@ function serializeGuiControl(control: GuiControl): SerializedGuiControl {
       ...(control.color ? { color: control.color } : {}),
     };
   }
-  return {
-    type: "dropdown",
-    options: [...control.options],
-    ...(control.x !== undefined ? { x: control.x } : {}),
-    ...(control.y !== undefined ? { y: control.y } : {}),
-    ...(control.width !== undefined ? { width: control.width } : {}),
-    ...(control.color ? { color: control.color } : {}),
-  };
+  if (control.type === "dropdown") {
+    return {
+      type: "dropdown",
+      options: [...control.options],
+      ...(control.x !== undefined ? { x: control.x } : {}),
+      ...(control.y !== undefined ? { y: control.y } : {}),
+      ...(control.width !== undefined ? { width: control.width } : {}),
+      ...(control.color ? { color: control.color } : {}),
+    };
+  }
+  return { type: "code", code: control.code };
 }
 
 /** Returns null if a "button" control's target refers to a builtin id that no longer exists. */
@@ -508,15 +512,18 @@ function hydrateGuiControl(control: SerializedGuiControl, nextIdRef: { current: 
       ...(control.color ? { color: control.color } : {}),
     };
   }
-  return {
-    id,
-    type: "dropdown",
-    options: [...(control.options ?? [])],
-    ...(control.x !== undefined ? { x: control.x } : {}),
-    ...(control.y !== undefined ? { y: control.y } : {}),
-    ...(control.width !== undefined ? { width: control.width } : {}),
-    ...(control.color ? { color: control.color } : {}),
-  };
+  if (control.type === "dropdown") {
+    return {
+      id,
+      type: "dropdown",
+      options: [...(control.options ?? [])],
+      ...(control.x !== undefined ? { x: control.x } : {}),
+      ...(control.y !== undefined ? { y: control.y } : {}),
+      ...(control.width !== undefined ? { width: control.width } : {}),
+      ...(control.color ? { color: control.color } : {}),
+    };
+  }
+  return { id, type: "code", code: control.code };
 }
 
 function stepToAhkLines(step: Step, allFunctions: FunctionEntry[], indent: string): string[] {
@@ -587,6 +594,10 @@ function stepToAhkLines(step: Step, allFunctions: FunctionEntry[], indent: strin
     if (step.color) lines.push(`${indent}${step.varName}.BackColor := "0x${step.color}"`);
 
     step.controls.forEach((control, index) => {
+      if (control.type === "code") {
+        for (const codeLine of control.code.split("\n")) lines.push(`${indent}${codeLine}`);
+        return;
+      }
       const positionOptions = [
         control.x !== undefined ? `x${control.x}` : "",
         control.y !== undefined ? `y${control.y}` : "",

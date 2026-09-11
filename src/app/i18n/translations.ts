@@ -237,6 +237,11 @@ export const en: Record<string, string> = {
   "functionsSection.guiControlCheckboxSummary": 'Checkbox "{{label}}"',
   "functionsSection.guiControlDropdownSummary": "Dropdown list ({{count}} options)",
   "functionsSection.guiControlUseColor": "Use a custom text color",
+  "functionsSection.guiControlTypeCode": "Custom AHK code",
+  "functionsSection.guiControlCodeLabel": "AHK code",
+  "functionsSection.guiControlCodePlaceholder": 'e.g. {{varName}}.Add("Progress", "w200 h20", 50)',
+  "functionsSection.guiControlCodeHint": "Inserted as written, right after the window is created. Use the {{name}} variable to reference it.",
+  "functionsSection.guiControlCodeSummary": "Custom AHK code",
 
   // close gui step
   "functionsSection.closeGuiLabel": "Close Gui",

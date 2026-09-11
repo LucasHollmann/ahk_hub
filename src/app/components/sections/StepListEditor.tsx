@@ -104,9 +104,12 @@ function guiControlSummary(t: Translate, control: GuiControl): string {
       label: control.label,
     });
   }
-  return t("functionsSection.guiControlDropdownSummary", "Lista suspensa ({{count}} opções)", {
-    count: control.options.length,
-  });
+  if (control.type === "dropdown") {
+    return t("functionsSection.guiControlDropdownSummary", "Lista suspensa ({{count}} opções)", {
+      count: control.options.length,
+    });
+  }
+  return t("functionsSection.guiControlCodeSummary", "Código AHK personalizado");
 }
 
 export default function StepListEditor({
@@ -174,6 +177,7 @@ export default function StepListEditor({
   const [guiControlHeight, setGuiControlHeight] = useState("");
   const [guiControlUseColor, setGuiControlUseColor] = useState(false);
   const [guiControlColor, setGuiControlColor] = useState("ffffff");
+  const [guiControlCode, setGuiControlCode] = useState("");
   const [guiControlBuiltinId, setGuiControlBuiltinId] = useState("");
   const [guiControlBuiltinArgs, setGuiControlBuiltinArgs] = useState<ArgValues>({});
   const [guiControlFunctionName, setGuiControlFunctionName] = useState("");
@@ -866,7 +870,9 @@ export default function StepListEditor({
           ? true
           : guiControlType === "checkbox"
             ? guiControlText.trim() !== ""
-            : guiControlOptions.length > 0;
+            : guiControlType === "dropdown"
+              ? guiControlOptions.length > 0
+              : guiControlCode.trim() !== "";
 
   function resetGuiControlFormState() {
     setEditingGuiControlId(null);
@@ -883,6 +889,7 @@ export default function StepListEditor({
     setGuiControlHeight("");
     setGuiControlUseColor(false);
     setGuiControlColor("ffffff");
+    setGuiControlCode("");
     setGuiControlBuiltinId("");
     setGuiControlBuiltinArgs({});
     setGuiControlFunctionName("");
@@ -903,8 +910,8 @@ export default function StepListEditor({
     resetGuiControlFormState();
     setEditingGuiControlId(control.id);
     setGuiControlType(control.type);
-    if (control.x !== undefined) setGuiControlX(String(control.x));
-    if (control.y !== undefined) setGuiControlY(String(control.y));
+    if ("x" in control && control.x !== undefined) setGuiControlX(String(control.x));
+    if ("y" in control && control.y !== undefined) setGuiControlY(String(control.y));
     if ("width" in control && control.width !== undefined) setGuiControlWidth(String(control.width));
     if ("height" in control && control.height !== undefined) setGuiControlHeight(String(control.height));
     if ("color" in control && control.color) {
@@ -928,8 +935,10 @@ export default function StepListEditor({
     } else if (control.type === "checkbox") {
       setGuiControlText(control.label);
       setGuiControlChecked(control.checked);
-    } else {
+    } else if (control.type === "dropdown") {
       setGuiControlOptions(control.options);
+    } else {
+      setGuiControlCode(control.code);
     }
     setIsGuiControlFormOpen(true);
   }
@@ -1023,7 +1032,7 @@ export default function StepListEditor({
         ...(y !== undefined ? { y } : {}),
         ...(guiControlUseColor ? { color: guiControlColor } : {}),
       };
-    } else {
+    } else if (guiControlType === "dropdown") {
       control = {
         id,
         type: "dropdown",
@@ -1033,6 +1042,8 @@ export default function StepListEditor({
         ...(width !== undefined ? { width } : {}),
         ...(guiControlUseColor ? { color: guiControlColor } : {}),
       };
+    } else {
+      control = { id, type: "code", code: guiControlCode };
     }
 
     if (editingGuiControlId !== null) {
@@ -2142,8 +2153,37 @@ export default function StepListEditor({
                 <option value="dropdown">
                   {t("functionsSection.guiControlTypeDropdown", "Lista suspensa")}
                 </option>
+                <option value="code">{t("functionsSection.guiControlTypeCode", "Código AHK personalizado")}</option>
               </select>
             </div>
+
+            {guiControlType === "code" && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs opacity-70">
+                  {t("functionsSection.guiControlCodeLabel", "Código AHK")}
+                </label>
+                <textarea
+                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full font-mono text-sm resize-y min-h-24"
+                  value={guiControlCode}
+                  onChange={(e) => setGuiControlCode(e.target.value)}
+                  placeholder={t(
+                    "functionsSection.guiControlCodePlaceholder",
+                    'Ex: {{varName}}.Add("Progress", "w200 h20", 50)'
+                  ).replace("{{varName}}", stepGuiTitle.trim() ? guiVarNameFromTitle(stepGuiTitle.trim()) : "gui")}
+                  spellCheck={false}
+                  wrap="off"
+                  rows={4}
+                  autoFocus
+                />
+                <span className="text-xs opacity-60">
+                  {t(
+                    "functionsSection.guiControlCodeHint",
+                    "Inserido tal como escrito, logo após a criação da janela. Use a variável {{name}} para referenciá-la.",
+                    { name: stepGuiTitle.trim() ? guiVarNameFromTitle(stepGuiTitle.trim()) : "gui_..." }
+                  )}
+                </span>
+              </div>
+            )}
 
             {(guiControlType === "text" || guiControlType === "button" || guiControlType === "checkbox") && (
               <div className="flex flex-col gap-1">
@@ -2287,30 +2327,36 @@ export default function StepListEditor({
               </div>
             )}
 
-            <div className="flex gap-2">
-              <div className="flex flex-col gap-1 flex-1">
-                <label className="text-xs opacity-70">{t("functionsSection.createGuiXLabel", "Posição X")}</label>
-                <input
-                  type="number"
-                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                  value={guiControlX}
-                  onChange={(e) => setGuiControlX(e.target.value)}
-                  placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
-                />
+            {guiControlType !== "code" && (
+              <div className="flex gap-2">
+                <div className="flex flex-col gap-1 flex-1">
+                  <label className="text-xs opacity-70">
+                    {t("functionsSection.createGuiXLabel", "Posição X")}
+                  </label>
+                  <input
+                    type="number"
+                    className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                    value={guiControlX}
+                    onChange={(e) => setGuiControlX(e.target.value)}
+                    placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
+                  />
+                </div>
+                <div className="flex flex-col gap-1 flex-1">
+                  <label className="text-xs opacity-70">
+                    {t("functionsSection.createGuiYLabel", "Posição Y")}
+                  </label>
+                  <input
+                    type="number"
+                    className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                    value={guiControlY}
+                    onChange={(e) => setGuiControlY(e.target.value)}
+                    placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-1 flex-1">
-                <label className="text-xs opacity-70">{t("functionsSection.createGuiYLabel", "Posição Y")}</label>
-                <input
-                  type="number"
-                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                  value={guiControlY}
-                  onChange={(e) => setGuiControlY(e.target.value)}
-                  placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
-                />
-              </div>
-            </div>
+            )}
 
-            {guiControlType !== "checkbox" && (
+            {guiControlType !== "checkbox" && guiControlType !== "code" && (
               <div className="flex gap-2">
                 <div className="flex flex-col gap-1 flex-1">
                   <label className="text-xs opacity-70">
@@ -2341,7 +2387,7 @@ export default function StepListEditor({
               </div>
             )}
 
-            {guiControlType !== "button" && (
+            {guiControlType !== "button" && guiControlType !== "code" && (
               <div className="flex flex-col gap-1.5">
                 <RecordOptionCheckbox
                   checked={guiControlUseColor}

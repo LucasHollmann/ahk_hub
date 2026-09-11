@@ -65,7 +65,9 @@ export type SerializedGuiControl =
       color?: string;
     }
   | { type: "checkbox"; label: string; checked: boolean; x?: number; y?: number; color?: string }
-  | { type: "dropdown"; options: string[]; x?: number; y?: number; width?: number; color?: string };
+  | { type: "dropdown"; options: string[]; x?: number; y?: number; width?: number; color?: string }
+  /** Raw AHK code inserted verbatim, for adding controls the structured item form doesn't cover. */
+  | { type: "code"; code: string };
 
 export type SerializedStep =
   | { kind: "customFunction"; functionName: string; args: ArgValues }
