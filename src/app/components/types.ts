@@ -19,7 +19,9 @@ export type VariableAction =
       varType: VariableType;
       initialValue: string | number | boolean;
       scope: VariableScope;
-    };
+    }
+  /** Shows an InputBox and stores the text the user typed into a variable. */
+  | { action: "promptInput"; targetName: string; prompt: string; title: string };
 
 export type ConditionOperator = "=" | "!=" | ">" | "<" | ">=" | "<=";
 
@@ -30,6 +32,40 @@ export type ConditionValue =
   | { kind: "builtin"; conditionId: string; params: ParamValues };
 
 export type FlowControlType = "loop" | "conditional";
+
+/** What a menu item calls when clicked — a plain function call, same shape as a customFunction/builtin step. */
+export type SerializedMenuItemTarget =
+  | { kind: "customFunction"; functionName: string; args: ArgValues }
+  | { kind: "builtin"; functionId: string; args: ArgValues };
+
+export type SerializedMenuItem = { label: string; target: SerializedMenuItemTarget };
+
+/** A control added to a Gui created by a "createGui" step. */
+export type SerializedGuiControl =
+  /** color is a 6-digit hex string (no "#"/"0x"), applied as the text color — buttons don't support it (native Win32 buttons need owner-draw for that, which AHK doesn't expose here). */
+  | { type: "text"; text: string; x?: number; y?: number; width?: number; color?: string }
+  | {
+      type: "button";
+      text: string;
+      /** What clicking the button calls — same shape as a menu item's target. */
+      onClick: SerializedMenuItemTarget;
+      x?: number;
+      y?: number;
+      width?: number;
+      height?: number;
+    }
+  | {
+      type: "edit";
+      initialValue: string;
+      multiline: boolean;
+      x?: number;
+      y?: number;
+      width?: number;
+      height?: number;
+      color?: string;
+    }
+  | { type: "checkbox"; label: string; checked: boolean; x?: number; y?: number; color?: string }
+  | { type: "dropdown"; options: string[]; x?: number; y?: number; width?: number; color?: string };
 
 export type SerializedStep =
   | { kind: "customFunction"; functionName: string; args: ArgValues }
@@ -43,7 +79,33 @@ export type SerializedStep =
       body: SerializedStep[];
       /** Conditional-only: steps that run when the condition is false. */
       elseBody?: SerializedStep[];
-    };
+    }
+  | { kind: "showMenu"; title: string; items: SerializedMenuItem[] }
+  /** Creates a Gui() as a global variable and shows it immediately. */
+  | {
+      kind: "createGui";
+      varName: string;
+      title: string;
+      resizable: boolean;
+      alwaysOnTop: boolean;
+      noCaption: boolean;
+      toolWindow: boolean;
+      initialState: GuiInitialState;
+      /** Background color as a 6-digit hex string (no "#"/"0x" prefix), if customized. */
+      color?: string;
+      width?: number;
+      height?: number;
+      x?: number;
+      y?: number;
+      /** 0 (invisible) to 255 (opaque), if customized. */
+      opacity?: number;
+      controls: SerializedGuiControl[];
+    }
+  /** Closes a Gui previously created by a "createGui" step. */
+  | { kind: "closeGui"; targetVar: string };
+
+/** How a Gui window is shown right after being created. */
+export type GuiInitialState = "normal" | "maximized" | "minimized";
 
 export type FunctionEntry = {
   id: number;
@@ -60,10 +122,14 @@ export type RemappingDestination =
   | { kind: "builtin"; meta: FunctionMeta; params: ParamValues }
   | { kind: "customFunction"; name: string; args: ArgValues };
 
+/** When the mapped action fires relative to the physical key: on press, on release, or on press while waiting for release before it can fire again. */
+export type RemappingTrigger = "down" | "up" | "full";
+
 export type Remapping = {
   id: number;
   from: string;
   destination: RemappingDestination;
+  trigger: RemappingTrigger;
 };
 
 export type GlobalVariable = {

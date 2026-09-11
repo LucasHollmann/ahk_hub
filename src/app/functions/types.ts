@@ -106,13 +106,14 @@ export function expandHeaderParamsToCallParams(headerParams: HeaderParamDef[]): 
 
 export type ParamValues = Record<string, string | number | boolean>;
 
-/** Groups builtins in pickers — "input" (keyboard/mouse), "window", "system" (misc/media). */
-export type FunctionCategoryId = "input" | "window" | "system";
+/** Groups builtins in pickers — "input" (keyboard/mouse), "window", "system" (misc/media), "ui" (tooltip, notification, input prompt...). */
+export type FunctionCategoryId = "input" | "window" | "system" | "ui";
 
 export const FUNCTION_CATEGORY_LABELS: Record<FunctionCategoryId, string> = {
   input: "Entradas básicas",
   window: "Janelas",
   system: "Sistema",
+  ui: "Interface",
 };
 
 export function tFunctionCategoryLabel(t: Translate, category: FunctionCategoryId): string {

@@ -1,9 +1,11 @@
 import type { FunctionEntry, GlobalVariable, Remapping } from "../components/types";
+import { collectAllGuiVariablesAcrossFunctions } from "../components/sections/stepTypes";
 import { expandHeaderParamsToCallParams, type FunctionMeta } from "./types";
 import { BUILTIN_FUNCTIONS } from "./builtins";
 import { BUILTIN_CONDITIONS } from "./conditions";
 import {
   comboToHotkey,
+  comboToKeyWaitName,
   formatAhkArgLiteral,
   formatAhkCallArgs,
   toConditionFunctionName,
@@ -92,6 +94,18 @@ export function generateAhkScript(
     lines.push("");
   }
 
+  const guiVariableNames = [...new Set(collectAllGuiVariablesAcrossFunctions(functions).map((v) => v.key))];
+  if (guiVariableNames.length > 0) {
+    lines.push(
+      "; ==== Variáveis globais de Gui (pré-declaradas para poderem ser usadas antes de \"Criar Gui\" rodar) ====",
+      ""
+    );
+    for (const name of guiVariableNames) {
+      lines.push(`${name} := ""`);
+    }
+    lines.push("");
+  }
+
   if (usedBuiltins.size > 0 || usedCustomFunctions.size > 0) {
     lines.push("; ==== Declaração das funções ====", "");
 
@@ -117,14 +131,27 @@ export function generateAhkScript(
     const hotkey = comboToHotkey(r.from);
     const { destination } = r;
 
+    let callExpr: string | null = null;
     if (destination.kind === "builtin" && destination.meta.toAhkCall) {
-      lines.push(`${hotkey}::${destination.meta.toAhkCall(destination.params)}`);
+      callExpr = destination.meta.toAhkCall(destination.params);
     } else if (destination.kind === "customFunction") {
       const targetParams = expandHeaderParamsToCallParams(
         functions.find((f) => f.name === destination.name)?.params ?? []
       );
       const argsStr = targetParams.length > 0 ? formatAhkCallArgs(targetParams, destination.args) : "";
-      lines.push(`${hotkey}::${destination.name}(${argsStr})`);
+      callExpr = `${destination.name}(${argsStr})`;
+    }
+
+    if (callExpr) {
+      if (r.trigger === "up") {
+        lines.push(`${hotkey} Up::${callExpr}`);
+      } else if (r.trigger === "down") {
+        // Fires once for the press, then blocks re-firing (e.g. from OS key-repeat while held)
+        // until the physical key is released — as opposed to "full", the plain default remap.
+        lines.push(`${hotkey}::`, "{", `    ${callExpr}`, `    KeyWait "${comboToKeyWaitName(r.from)}"`, "}");
+      } else {
+        lines.push(`${hotkey}::${callExpr}`);
+      }
     }
 
     lines.push("");

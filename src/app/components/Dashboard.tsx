@@ -45,22 +45,27 @@ export default function Dashboard() {
   }, [lastSavedPath, locale]);
 
   function addFunction(entry: Omit<FunctionEntry, "id">) {
-    setFunctions((prev) => [...prev, { id: generateId(), ...entry }]);
+    const next = [...functions, { id: generateId(), ...entry }];
+    setFunctions(next);
+    autoSaveAndReload(remappings, next, variables);
   }
 
   function updateFunction(id: number, entry: Omit<FunctionEntry, "id">) {
     const previous = functions.find((f) => f.id === id);
-    setFunctions((prev) => prev.map((f) => (f.id === id ? { id, ...entry } : f)));
+    const nextFunctions = functions.map((f) => (f.id === id ? { id, ...entry } : f));
 
+    let nextRemappings = remappings;
     if (previous && previous.name !== entry.name) {
-      setRemappings((prev) =>
-        prev.map((r) =>
-          r.destination.kind === "customFunction" && r.destination.name === previous.name
-            ? { ...r, destination: { ...r.destination, name: entry.name } }
-            : r
-        )
+      nextRemappings = remappings.map((r) =>
+        r.destination.kind === "customFunction" && r.destination.name === previous.name
+          ? { ...r, destination: { ...r.destination, name: entry.name } }
+          : r
       );
+      setRemappings(nextRemappings);
     }
+
+    setFunctions(nextFunctions);
+    autoSaveAndReload(nextRemappings, nextFunctions, variables);
   }
 
   function removeFunction(id: number) {
@@ -70,13 +75,13 @@ export default function Dashboard() {
   function addRemapping(remapping: Omit<Remapping, "id">) {
     const next = [...remappings, { id: generateId(), ...remapping }];
     setRemappings(next);
-    autoSaveAndReload(next);
+    autoSaveAndReload(next, functions, variables);
   }
 
   function updateRemapping(id: number, remapping: Omit<Remapping, "id">) {
     const next = remappings.map((r) => (r.id === id ? { id, ...remapping } : r));
     setRemappings(next);
-    autoSaveAndReload(next);
+    autoSaveAndReload(next, functions, variables);
   }
 
   function removeRemapping(id: number) {
@@ -84,11 +89,15 @@ export default function Dashboard() {
   }
 
   function addVariable(variable: Omit<GlobalVariable, "id">) {
-    setVariables((prev) => [...prev, { id: generateId(), ...variable }]);
+    const next = [...variables, { id: generateId(), ...variable }];
+    setVariables(next);
+    autoSaveAndReload(remappings, functions, next);
   }
 
   function updateVariable(id: number, variable: Omit<GlobalVariable, "id">) {
-    setVariables((prev) => prev.map((v) => (v.id === id ? { id, ...variable } : v)));
+    const next = variables.map((v) => (v.id === id ? { id, ...variable } : v));
+    setVariables(next);
+    autoSaveAndReload(remappings, functions, next);
   }
 
   function removeVariable(id: number) {
@@ -137,11 +146,15 @@ export default function Dashboard() {
   }
 
   // Only auto-saves when a file is already linked — never prompts a dialog on its own.
-  async function autoSaveAndReload(nextRemappings: Remapping[]) {
+  async function autoSaveAndReload(
+    nextRemappings: Remapping[],
+    nextFunctions: FunctionEntry[],
+    nextVariables: GlobalVariable[]
+  ) {
     if (!lastSavedPath) return;
     if (!window.desktop?.saveScript || !window.desktop?.runScript) return;
 
-    const script = generateAhkScript(nextRemappings, functions, variables);
+    const script = generateAhkScript(nextRemappings, nextFunctions, nextVariables);
     const saveResult = await window.desktop.saveScript(script, lastSavedPath);
     if (saveResult.status !== "saved") {
       setSaveStatus(

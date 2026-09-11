@@ -1,4 +1,10 @@
-import type { FunctionEntry, GlobalVariable, Remapping, RemappingDestination } from "../components/types";
+import type {
+  FunctionEntry,
+  GlobalVariable,
+  Remapping,
+  RemappingDestination,
+  RemappingTrigger,
+} from "../components/types";
 import { BUILTIN_FUNCTIONS } from "./builtins";
 import type { ArgValues, ParamValues } from "./types";
 
@@ -15,6 +21,8 @@ type SerializedRemapping = {
   id: number;
   from: string;
   destination: SerializedDestination;
+  /** Absent in files saved before this existed — treated as "down". */
+  trigger?: RemappingTrigger;
 };
 
 type SerializedState = {
@@ -59,6 +67,7 @@ export function serializeStateComment(
       id: r.id,
       from: r.from,
       destination: serializeDestination(r.destination),
+      trigger: r.trigger,
     })),
     functions,
     variables,
@@ -113,6 +122,8 @@ export function parseAhkScript(content: string): ParseResult {
     }
 
     const destination = r.destination;
+    // Files saved before this existed behaved like a plain `hotkey::call` remap — "full" now.
+    const trigger: RemappingTrigger = r.trigger === "up" || r.trigger === "down" ? r.trigger : "full";
     if (destination.kind === "key" && typeof destination.combo === "string") {
       // Legacy format, from before "send a key" became the KeyPress builtin.
       const meta = BUILTIN_FUNCTIONS.find((f) => f.id === "keyPress");
@@ -127,12 +138,14 @@ export function parseAhkScript(content: string): ParseResult {
           meta,
           params: { combo: destination.combo, duration: 0 },
         },
+        trigger,
       });
     } else if (destination.kind === "customFunction" && typeof destination.name === "string") {
       remappings.push({
         id: r.id,
         from: r.from,
         destination: { kind: "customFunction", name: destination.name, args: destination.args ?? {} },
+        trigger,
       });
     } else if (destination.kind === "builtin" && typeof destination.functionId === "string") {
       const meta = BUILTIN_FUNCTIONS.find((f) => f.id === destination.functionId);
@@ -143,6 +156,7 @@ export function parseAhkScript(content: string): ParseResult {
         id: r.id,
         from: r.from,
         destination: { kind: "builtin", meta, params: destination.params ?? {} },
+        trigger,
       });
     } else {
       return { ok: false, error: "tipo de destino desconhecido" };

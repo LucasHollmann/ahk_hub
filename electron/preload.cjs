@@ -12,4 +12,11 @@ contextBridge.exposeInMainWorld("desktop", {
   saveScript: (content, path) => ipcRenderer.invoke("save-script", content, path),
   runScript: (path) => ipcRenderer.invoke("run-script", path),
   loadScript: () => ipcRenderer.invoke("load-script"),
+  startRecording: () => ipcRenderer.send("record:start"),
+  stopRecording: () => ipcRenderer.send("record:stop"),
+  onRecordedEvent: (callback) => {
+    const listener = (_event, result) => callback(result);
+    ipcRenderer.on("record:event", listener);
+    return () => ipcRenderer.removeListener("record:event", listener);
+  },
 });

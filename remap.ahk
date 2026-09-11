@@ -3,30 +3,26 @@
 #SingleInstance Force
 SendMode "Input"
 
+; ==== Variáveis globais de Gui (pré-declaradas para poderem ser usadas antes de "Criar Gui" rodar) ====
+
+gui_xD := ""
+
 ; ==== Declaração das funções ====
 
-system_controller_function_exibir_mensagem(text) {
-    MsgBox text
-}
-
-system_controller_condition_janela_ativa_contem(titleContains) {
-    try {
-        return InStr(WinGetTitle("A"), titleContains) > 0
-    } catch {
-        return false
-    }
+system_controller_function_esperar(ms) {
+    Sleep ms
 }
 
 test() {
-    f := "1"
-    f := "h"
-    if (system_controller_condition_janela_ativa_contem("remap")) {
-        system_controller_function_exibir_mensagem("xd")
+    global gui_xD
+    gui_xD := Gui("+AlwaysOnTop -Caption +ToolWindow", "xD")
+    gui_xD.BackColor := "0x312f31"
+    gui_xD.Add("Text", "cffffff", "xD")
+    gui_xD.Show("w300")
+    while (GetKeyState("ctrl", "P")) {
+        system_controller_function_esperar(100)
     }
-    else {
-        system_controller_function_exibir_mensagem("dx")
-        system_controller_function_exibir_mensagem("dy")
-    }
+    gui_xD.Destroy()
 }
 
 ; ==== Remapeamentos ====
@@ -34,5 +30,5 @@ test() {
 ^D::test()
 
 ; === AHK_HUB_STATE_BEGIN ===
-; eyJyZW1hcHBpbmdzIjpbeyJpZCI6MSwiZnJvbSI6IkN0cmwrRCIsImRlc3RpbmF0aW9uIjp7ImtpbmQiOiJjdXN0b21GdW5jdGlvbiIsIm5hbWUiOiJ0ZXN0IiwiYXJncyI6e319fV0sImZ1bmN0aW9ucyI6W3siaWQiOjEsIm5hbWUiOiJ0ZXN0IiwiZGVzY3JpcHRpb24iOiIiLCJjb2RlIjoidGVzdCgpIHtcbiAgICBmIDo9IFwiMVwiXG4gICAgZiA6PSBcImhcIlxuICAgIGlmIChzeXN0ZW1fY29udHJvbGxlcl9jb25kaXRpb25famFuZWxhX2F0aXZhX2NvbnRlbShcInJlbWFwXCIpKSB7XG4gICAgICAgIHN5c3RlbV9jb250cm9sbGVyX2Z1bmN0aW9uX2V4aWJpcl9tZW5zYWdlbShcInhkXCIpXG4gICAgfVxuICAgIGVsc2Uge1xuICAgICAgICBzeXN0ZW1fY29udHJvbGxlcl9mdW5jdGlvbl9leGliaXJfbWVuc2FnZW0oXCJkeFwiKVxuICAgICAgICBzeXN0ZW1fY29udHJvbGxlcl9mdW5jdGlvbl9leGliaXJfbWVuc2FnZW0oXCJkeVwiKVxuICAgIH1cbn0iLCJwYXJhbXMiOltdLCJidWlsZGVyIjp7Im1vZGUiOiJzdGVwcyIsInN0ZXBzIjpbeyJraW5kIjoidmFyaWFibGVBY3Rpb24iLCJhY3Rpb24iOiJjcmVhdGUiLCJ0YXJnZXROYW1lIjoiZiIsInZhclR5cGUiOiJ0ZXh0IiwiaW5pdGlhbFZhbHVlIjoiMSIsInNjb3BlIjoibG9jYWwifSx7ImtpbmQiOiJ2YXJpYWJsZUFjdGlvbiIsImFjdGlvbiI6InNldCIsInRhcmdldE5hbWUiOiJmIiwidmFsdWUiOnsia2luZCI6ImxpdGVyYWwiLCJ2YWx1ZSI6ImgifX0seyJraW5kIjoiZmxvd0NvbnRyb2wiLCJmbG93VHlwZSI6ImNvbmRpdGlvbmFsIiwiY29uZGl0aW9uIjp7ImtpbmQiOiJidWlsdGluIiwiY29uZGl0aW9uSWQiOiJjb25kQWN0aXZlV2luZG93IiwicGFyYW1zIjp7InRpdGxlQ29udGFpbnMiOiJyZW1hcCJ9fSwiYm9keSI6W3sia2luZCI6ImJ1aWx0aW4iLCJmdW5jdGlvbklkIjoic2hvd01lc3NhZ2UiLCJhcmdzIjp7InRleHQiOnsia2luZCI6ImxpdGVyYWwiLCJ2YWx1ZSI6InhkIn19fV0sImVsc2VCb2R5IjpbeyJraW5kIjoiYnVpbHRpbiIsImZ1bmN0aW9uSWQiOiJzaG93TWVzc2FnZSIsImFyZ3MiOnsidGV4dCI6eyJraW5kIjoibGl0ZXJhbCIsInZhbHVlIjoiZHgifX19LHsia2luZCI6ImJ1aWx0aW4iLCJmdW5jdGlvbklkIjoic2hvd01lc3NhZ2UiLCJhcmdzIjp7InRleHQiOnsia2luZCI6ImxpdGVyYWwiLCJ2YWx1ZSI6ImR5In19fV19XX19XSwidmFyaWFibGVzIjpbXX0=
+; eyJyZW1hcHBpbmdzIjpbeyJpZCI6NSwiZnJvbSI6IkN0cmwrRCIsImRlc3RpbmF0aW9uIjp7ImtpbmQiOiJjdXN0b21GdW5jdGlvbiIsIm5hbWUiOiJ0ZXN0IiwiYXJncyI6e319LCJ0cmlnZ2VyIjoiZnVsbCJ9XSwiZnVuY3Rpb25zIjpbeyJpZCI6NCwibmFtZSI6InRlc3QiLCJkZXNjcmlwdGlvbiI6IiIsImNvZGUiOiJ0ZXN0KCkge1xuICAgIGdsb2JhbCBndWlfeERcbiAgICBndWlfeEQgOj0gR3VpKFwiK0Fsd2F5c09uVG9wIC1DYXB0aW9uICtUb29sV2luZG93XCIsIFwieERcIilcbiAgICBndWlfeEQuQmFja0NvbG9yIDo9IFwiMHgzMTJmMzFcIlxuICAgIGd1aV94RC5BZGQoXCJUZXh0XCIsIFwiY2ZmZmZmZlwiLCBcInhEXCIpXG4gICAgZ3VpX3hELlNob3coXCJ3MzAwXCIpXG4gICAgd2hpbGUgKEdldEtleVN0YXRlKFwiY3RybFwiLCBcIlBcIikpIHtcbiAgICAgICAgc3lzdGVtX2NvbnRyb2xsZXJfZnVuY3Rpb25fZXNwZXJhcigxMDApXG4gICAgfVxuICAgIGd1aV94RC5EZXN0cm95KClcbn0iLCJwYXJhbXMiOltdLCJidWlsZGVyIjp7Im1vZGUiOiJzdGVwcyIsInN0ZXBzIjpbeyJraW5kIjoiY3JlYXRlR3VpIiwidmFyTmFtZSI6Imd1aV94RCIsInRpdGxlIjoieEQiLCJyZXNpemFibGUiOmZhbHNlLCJhbHdheXNPblRvcCI6dHJ1ZSwibm9DYXB0aW9uIjp0cnVlLCJ0b29sV2luZG93Ijp0cnVlLCJpbml0aWFsU3RhdGUiOiJub3JtYWwiLCJjb2xvciI6IjMxMmYzMSIsIndpZHRoIjozMDAsImNvbnRyb2xzIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJ4RCIsImNvbG9yIjoiZmZmZmZmIn1dfSx7ImtpbmQiOiJmbG93Q29udHJvbCIsImZsb3dUeXBlIjoibG9vcCIsImNvbmRpdGlvbiI6eyJraW5kIjoiYnVpbHRpbiIsImNvbmRpdGlvbklkIjoiY29uZEtleVN0YXRlIiwicGFyYW1zIjp7ImtleSI6ImN0cmwifX0sImJvZHkiOlt7ImtpbmQiOiJidWlsdGluIiwiZnVuY3Rpb25JZCI6IndhaXQiLCJhcmdzIjp7Im1zIjp7ImtpbmQiOiJsaXRlcmFsIiwidmFsdWUiOjEwMH19fV19LHsia2luZCI6ImNsb3NlR3VpIiwidGFyZ2V0VmFyIjoiZ3VpX3hEIn1dfX1dLCJ2YXJpYWJsZXMiOltdfQ==
 ; === AHK_HUB_STATE_END ===

@@ -12,6 +12,9 @@ import { meta as scrollMeta } from "./scroll";
 import { meta as dragMeta } from "./drag";
 import { meta as systemActionMeta } from "./systemAction";
 import { meta as mediaMeta } from "./media";
+import { meta as tooltipMeta } from "./tooltip";
+import { meta as trayTipMeta } from "./trayTip";
+import { meta as beepMeta } from "./beep";
 import type { FunctionMeta } from "../types";
 
 export const BUILTIN_FUNCTIONS: FunctionMeta[] = [
@@ -29,4 +32,7 @@ export const BUILTIN_FUNCTIONS: FunctionMeta[] = [
   dragMeta,
   systemActionMeta,
   mediaMeta,
+  tooltipMeta,
+  trayTipMeta,
+  beepMeta,
 ];

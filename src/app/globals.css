@@ -20,6 +20,32 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--foreground) 25%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--foreground) 25%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--foreground) 40%, transparent);
+  background-clip: padding-box;
+}
+
 .button-main {
   background: linear-gradient(135deg, var(--main), var(--main-gradient));
   box-shadow: 0 4px 5px color-mix(in srgb, var(--dark) 50%, transparent);

@@ -24,6 +24,28 @@ export type LoadScriptResult =
   | { status: "error"; error: string }
   | { status: "canceled" };
 
+export type RecordedClickEvent = {
+  kind: "click";
+  /** Position where the button was released. */
+  point: { x: number; y: number };
+  /** Position where the button was originally pressed — same as `point` for a click with no movement. */
+  downPoint: { x: number; y: number };
+  window: CapturedWindow | null;
+  button: "Left" | "Right" | "Middle";
+  doubleClick: boolean;
+  /** Milliseconds the button was held down before being released. */
+  heldMs: number;
+};
+
+export type RecordedKeyEvent = {
+  kind: "key";
+  combo: string;
+  /** Milliseconds the key (or standalone modifier) was held down before being released. */
+  heldMs: number;
+};
+
+export type RecordedEvent = RecordedClickEvent | RecordedKeyEvent;
+
 declare global {
   interface Window {
     desktop?: {
@@ -36,6 +58,9 @@ declare global {
       saveScript: (content: string, path?: string) => Promise<SaveScriptResult>;
       runScript: (path: string) => Promise<RunScriptResult>;
       loadScript: () => Promise<LoadScriptResult>;
+      startRecording: () => void;
+      stopRecording: () => void;
+      onRecordedEvent: (callback: (event: RecordedEvent) => void) => () => void;
     };
   }
 }

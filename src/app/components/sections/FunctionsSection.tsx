@@ -9,6 +9,8 @@ import { useTranslation } from "../../i18n/I18nContext";
 import {
   buildCodeFromSteps,
   clearHeaderParamRefs,
+  collectAllGuiVariables,
+  collectAllGuiVariablesAcrossFunctions,
   collectAllLocalVariableCreations,
   collectGlobalVariableCreations,
   headerParamIdentifiers,
@@ -74,6 +76,13 @@ export default function FunctionsSection({
   const availableStepFunctions = functions.filter((f) => f.id !== editingId);
 
   const localVariables: HeaderParamDef[] = collectAllLocalVariableCreations(steps);
+  const guiVariables: HeaderParamDef[] = (() => {
+    const seen = new Set<string>();
+    return [
+      ...collectAllGuiVariables(steps),
+      ...collectAllGuiVariablesAcrossFunctions(availableStepFunctions),
+    ].filter((v) => (seen.has(v.key) ? false : (seen.add(v.key), true)));
+  })();
   const globalVariableParams: HeaderParamDef[] = globalVariables.map((v) => ({
     key: v.name,
     label: v.name,
@@ -528,6 +537,7 @@ export default function FunctionsSection({
                       headerParams={headerParams}
                       localVariables={localVariables}
                       globalVariables={globalVariableParams}
+                      guiVariables={guiVariables}
                       nextStepIdRef={nextStepIdRef}
                     />
                   </SectionCard>

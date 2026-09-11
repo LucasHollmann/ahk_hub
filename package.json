@@ -17,7 +17,8 @@
     "get-windows": "^9.3.0",
     "next": "16.3.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

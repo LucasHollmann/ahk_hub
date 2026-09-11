@@ -94,14 +94,14 @@ export function FunctionPickerPopup({ items, value, onSelect, onClose }: PopupPr
               return (
                 <div
                   key={group}
-                  className={`flex flex-col rounded-lg border ${color.border} overflow-hidden`}
+                  className={`flex flex-col rounded-lg border ${color.border} overflow-hidden max-h-[45vh]`}
                 >
                   <span
-                    className={`text-[11px] font-semibold uppercase tracking-wide px-3 py-2 border-b ${color.text} ${color.border}`}
+                    className={`text-[11px] font-semibold uppercase tracking-wide px-3 py-2 border-b shrink-0 ${color.text} ${color.border}`}
                   >
                     {group}
                   </span>
-                  <div className="flex flex-col gap-0.5 p-1.5">
+                  <div className="flex flex-col gap-0.5 p-1.5 overflow-y-auto">
                     {groupItems.map((item) => (
                       <button
                         key={item.value}

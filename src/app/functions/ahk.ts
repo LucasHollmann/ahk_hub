@@ -29,6 +29,15 @@ export function comboToHotkey(combo: string): string {
   return `${symbols}${key}`;
 }
 
+/** The raw AHK key name `KeyWait` expects for this combo's final key (ignores modifiers, same as a standalone tap). */
+export function comboToKeyWaitName(combo: string): string {
+  const { modifiers, key } = splitCombo(combo);
+  if (modifiers.length === 0 && key in STANDALONE_KEY_NAMES) {
+    return STANDALONE_KEY_NAMES[key];
+  }
+  return key.length > 1 ? key : key.toLowerCase();
+}
+
 export function comboToSendTarget(combo: string): string {
   const { modifiers, key } = splitCombo(combo);
   if (modifiers.length === 0 && key in STANDALONE_KEY_NAMES) {
