@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   getCoordinatePairs,
+  type ParamDef,
   tCoordinateLabel,
   tFunctionName,
   tParamLabel,
@@ -12,7 +12,27 @@ import {
   type ParamValues,
 } from "../../functions/types";
 import { useTranslation, type Translate } from "../../i18n/I18nContext";
+import CursorCaptureButton, { type CaptureTarget } from "./CursorCapture";
 import KeyComboPicker from "./KeyComboPicker";
+
+/**
+ * Params whose value can be read off whatever the cursor is pointing at, so the field gets
+ * its own F8 capture button. Both are text params a function declares by a known name.
+ */
+export function captureTargetForParam(param: ParamDef): CaptureTarget | null {
+  if (param.type !== "text") return null;
+  if (param.key === "color") return "color";
+  if (param.key === "control") return "control";
+  return null;
+}
+
+/** The captured field a given target fills in. */
+export function capturedValue(
+  target: CaptureTarget,
+  result: { color: string | null; control: string | null }
+): string | null {
+  return target === "color" ? result.color : target === "control" ? result.control : null;
+}
 
 export function CoordinateField({
   functionId,
@@ -25,72 +45,11 @@ export function CoordinateField({
   functionId: string;
   pair: CoordinatePair;
   values: ParamValues;
+  /** Called twice in the same tick when a position is captured (X then Y), so it must apply updates functionally — building the next state off a captured prop drops the X. */
   onChange: (key: string, value: string | number | boolean) => void;
   hasFullScreenToggle: boolean;
   t: Translate;
 }) {
-  const [isCapturingPosition, setIsCapturingPosition] = useState(false);
-  const [capturedWindowLabel, setCapturedWindowLabel] = useState<string | null>(null);
-  const isDesktop = typeof window !== "undefined" && Boolean(window.desktop);
-
-  useEffect(() => {
-    if (!isCapturingPosition) return;
-
-    if (isDesktop) {
-      const unsubscribe = window.desktop!.onPositionCaptured((result) => {
-        const relativeToWindow = hasFullScreenToggle && !values.fullScreen;
-
-        if (relativeToWindow && result.window) {
-          onChange(pair.xKey, result.window.relative.x);
-          onChange(pair.yKey, result.window.relative.y);
-          setCapturedWindowLabel(
-            result.window.title ||
-              result.window.owner ||
-              t("paramsFields.activeWindowFallback", "janela ativa")
-          );
-        } else {
-          onChange(pair.xKey, result.point.x);
-          onChange(pair.yKey, result.point.y);
-          setCapturedWindowLabel(
-            relativeToWindow
-              ? t(
-                  "paramsFields.captureFallbackFullScreen",
-                  "não foi possível detectar a janela ativa; usada a tela toda"
-                )
-              : null
-          );
-        }
-
-        setIsCapturingPosition(false);
-      });
-      window.desktop!.startCapturePosition();
-      return () => {
-        unsubscribe();
-        window.desktop!.cancelCapturePosition();
-      };
-    }
-
-    function onMouseDown(e: MouseEvent) {
-      e.preventDefault();
-      e.stopPropagation();
-      onChange(pair.xKey, e.screenX);
-      onChange(pair.yKey, e.screenY);
-      setIsCapturingPosition(false);
-    }
-
-    window.addEventListener("mousedown", onMouseDown, true);
-    return () => window.removeEventListener("mousedown", onMouseDown, true);
-  }, [
-    isCapturingPosition,
-    isDesktop,
-    hasFullScreenToggle,
-    values.fullScreen,
-    onChange,
-    pair.xKey,
-    pair.yKey,
-    t,
-  ]);
-
   return (
     <div className="flex flex-col gap-1">
       <label className="text-xs opacity-70">{tCoordinateLabel(t, functionId, pair)}</label>
@@ -110,41 +69,13 @@ export function CoordinateField({
           onChange={(e) => onChange(pair.yKey, Number(e.target.value))}
         />
       </div>
-      <button
-        type="button"
-        className="button-secondary text-xs py-1.5"
-        onClick={() => {
-          setCapturedWindowLabel(null);
-          setIsCapturingPosition(true);
+      <CursorCaptureButton
+        relativeToWindow={hasFullScreenToggle && !values.fullScreen}
+        onCaptured={({ x, y }) => {
+          onChange(pair.xKey, x);
+          onChange(pair.yKey, y);
         }}
-      >
-        {isCapturingPosition
-          ? isDesktop
-            ? t("paramsFields.capturingDesktop", "Mova o mouse e pressione F8...")
-            : t("paramsFields.capturingBrowser", "Clique em qualquer ponto da tela...")
-          : t("paramsFields.capture", "Capturar posição do cursor")}
-      </button>
-      <p className="text-xs opacity-50">
-        {isDesktop
-          ? hasFullScreenToggle && !values.fullScreen
-            ? t(
-                "paramsFields.helpDesktopWindow",
-                "Clique na janela alvo para focá-la, depois mova o mouse até o local desejado dentro dela e pressione F8 — a coordenada será relativa a essa janela."
-              )
-            : t(
-                "paramsFields.helpDesktopScreen",
-                "Mova o mouse até o local desejado, em qualquer lugar da tela, e pressione F8 para capturar."
-              )
-          : t(
-              "paramsFields.helpBrowser",
-              "Só funciona clicando dentro desta janela do navegador — não é possível capturar a posição do cursor fora dela."
-            )}
-      </p>
-      {capturedWindowLabel && (
-        <p className="text-xs text-(--main)">
-          {t("paramsFields.capturedAt", "Capturado em: {{label}}", { label: capturedWindowLabel })}
-        </p>
-      )}
+      />
     </div>
   );
 }
@@ -256,6 +187,18 @@ export default function ParamsFields({ meta, values, onChange, resetSignal }: Pr
                   )
                 }
               />
+              {(() => {
+                const target = captureTargetForParam(param);
+                return target ? (
+                  <CursorCaptureButton
+                    capture={target}
+                    onCaptured={(result) => {
+                      const value = capturedValue(target, result);
+                      if (value) onChange(param.key, value);
+                    }}
+                  />
+                ) : null;
+              })()}
             </>
           )}
         </div>

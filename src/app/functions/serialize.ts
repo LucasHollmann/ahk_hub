@@ -4,11 +4,15 @@ import type {
   Remapping,
   RemappingDestination,
   RemappingTrigger,
+  VariableType,
 } from "../components/types";
 import { BUILTIN_FUNCTIONS } from "./builtins";
 import type { ArgValues, ParamValues } from "./types";
 
 export const AHK_HUB_HEADER = "; Gerado automaticamente pelo AHK Hub (AutoHotkey v2)";
+
+/** Variable types a saved file may declare; anything else (a newer/unknown type) loads as text. */
+const VARIABLE_TYPES: VariableType[] = ["text", "number", "boolean", "array", "coordinate"];
 const STATE_BEGIN = "; === AHK_HUB_STATE_BEGIN ===";
 const STATE_END = "; === AHK_HUB_STATE_END ===";
 
@@ -191,7 +195,7 @@ export function parseAhkScript(content: string): ParseResult {
     variables.push({
       id: v.id,
       name: v.name,
-      type: v.type === "number" || v.type === "boolean" ? v.type : "text",
+      type: VARIABLE_TYPES.includes(v.type) ? v.type : "text",
       initialValue: v.initialValue ?? "",
     });
   }

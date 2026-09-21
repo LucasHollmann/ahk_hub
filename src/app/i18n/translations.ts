@@ -39,6 +39,7 @@ export const en: Record<string, string> = {
   "variablesSection.initialValue": "initial value",
   "variablesSection.hint":
     "You can also create a global variable straight from inside a function, on the Functions tab — it shows up here too.",
+  "variablesSection.arrayItemsLabel": "Initial array items",
   "variablesSection.newVariable": "New variable",
   "variablesSection.editVariable": "Edit variable",
   "variablesSection.nameLabel": "Name",
@@ -81,6 +82,9 @@ export const en: Record<string, string> = {
   "functionsSection.descriptionPlaceholder": "What this function does",
   "functionsSection.add": "Add",
   "functionsSection.save": "Save",
+  "functionsSection.reorderHint":
+    "Drag to reorder — this is the order the functions are declared in the script.",
+  "functionsSection.duplicateName": 'There is already a function named "{{name}}".',
   "functionsSection.emptyCustomList": "No custom functions yet.",
   "functionsSection.edit": "Edit",
   "functionsSection.remove": "Remove",
@@ -109,6 +113,7 @@ export const en: Record<string, string> = {
   "functionsSection.paramTypeText": "Text",
   "functionsSection.paramTypeNumber": "Number",
   "functionsSection.paramTypeBoolean": "Boolean",
+  "functionsSection.paramTypeArray": "Array",
   "functionsSection.paramTypeSelect": "Selection",
   "functionsSection.paramTypeCoordinate": "Screen coordinate",
   "functionsSection.paramTypeKeyCombo": "Key",
@@ -282,6 +287,8 @@ export const en: Record<string, string> = {
   "stepArgsFields.usingHeaderParam": 'Using the header parameter "{{name}}"',
   "stepArgsFields.usingLocalVariable": 'Using the local variable "{{name}}"',
   "stepArgsFields.usingGlobalVariable": 'Using the global variable "{{name}}"',
+  "stepArgsFields.modifierLabel": "Modifier",
+  "stepArgsFields.modifierNone": "none",
   "stepArgsFields.groupHeaderParams": "Header parameters",
   "stepArgsFields.groupLocalVariables": "Local variables",
   "stepArgsFields.groupGlobalVariables": "Global variables",
@@ -289,12 +296,20 @@ export const en: Record<string, string> = {
   // params fields (form)
   "paramsFields.title": "Parameters for {{name}}",
   "paramsFields.capture": "Capture cursor position",
+  "paramsFields.captureColor": "Capture the pixel color under the cursor",
+  "paramsFields.captureControl": "Capture the control under the cursor",
+  "paramsFields.captureControlFailed":
+    "couldn't read the control — check that AutoHotkey v2 is installed and that there was a control under the cursor",
+  "paramsFields.helpDesktopControl":
+    "Hold the mouse still over the field you want, in any window, and press F8. The captured name (ClassNN) is the same one Window Spy shows.",
   "paramsFields.capturingDesktop": "Move the mouse and press F8...",
   "paramsFields.capturingBrowser": "Click anywhere on the page...",
   "paramsFields.helpDesktopWindow":
     "Click the target window to focus it, then move the mouse to the desired spot inside it and press F8 — the coordinate will be relative to that window.",
   "paramsFields.helpDesktopScreen":
     "Move the mouse to the desired spot, anywhere on the screen, and press F8 to capture.",
+  "paramsFields.helpBrowserDesktopOnly":
+    "Only works in the desktop app — a browser can't see anything outside this window.",
   "paramsFields.helpBrowser":
     "Only works by clicking inside this browser window — it's not possible to capture the cursor position outside it.",
   "paramsFields.capturedAt": "Captured at: {{label}}",
@@ -347,6 +362,18 @@ export const en: Record<string, string> = {
     "Activates (focuses) a window by title, optionally excluding windows containing specific text.",
   "functions.activateWindow.params.title.label": "Window title",
   "functions.activateWindow.params.excludeTitle.label": "Text the window must NOT contain",
+
+  // functions.sendToWindow
+  "functions.sendToWindow.name": "Send to background window",
+  "functions.sendToWindow.description":
+    "Sends keys or text to a window without focusing it or bringing it to the front. Not every program accepts this — games and some apps ignore input that doesn't come from the real keyboard.",
+  "functions.sendToWindow.params.title.label": "Window title (e.g. Notepad, ahk_exe notepad.exe)",
+  "functions.sendToWindow.params.what.label": "What to send",
+  "functions.sendToWindow.params.what.options.key": "Key combination",
+  "functions.sendToWindow.params.what.options.text": "Text",
+  "functions.sendToWindow.params.combo.label": "Key (when sending keys)",
+  "functions.sendToWindow.params.text.label": "Text (when sending text)",
+  "functions.sendToWindow.params.control.label": "Control inside the window (empty = the whole window)",
 
   // functions.showMessage
   "functions.showMessage.name": "Show Message",

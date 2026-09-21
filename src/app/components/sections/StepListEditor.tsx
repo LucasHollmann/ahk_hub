@@ -1,12 +1,30 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { VariableType, FunctionEntry, ConditionValue, FlowControlType, GuiInitialState } from "../types";
+import type {
+  AssignedValue,
+  VariableType,
+  VariableInitialValue,
+  FunctionEntry,
+  ConditionValue,
+  FlowControlType,
+  GuiInitialState,
+} from "../types";
+import ArgSourceValue from "./ArgSourceValue";
+import {
+  CoordinateLiteralFields,
+  CoordinateValueFields,
+  EMPTY_COORDINATE_ASSIGNMENT,
+} from "./CoordinateFields";
 import StepArgsFields from "./StepArgsFields";
 import ConditionFields from "./ConditionFields";
 import FunctionPicker, { FunctionPickerPopup, type FunctionPickerItem } from "./FunctionPicker";
 import { BUILTIN_FUNCTIONS } from "../../functions/builtins";
-import { isValidAhkIdentifier } from "../../functions/ahk";
+import {
+  defaultVariableValue,
+  isValidAhkIdentifier,
+  toCoordinateLiteral,
+} from "../../functions/ahk";
 import {
   areArgsFilled,
   defaultArgValues,
@@ -131,10 +149,11 @@ export default function StepListEditor({
   const [stepBuiltinArgs, setStepBuiltinArgs] = useState<ArgValues>({});
   const [stepVarAction, setStepVarAction] = useState<StepVarActionKind | null>(null);
   const [stepVarTargetName, setStepVarTargetName] = useState("");
-  const [stepVarSetValue, setStepVarSetValue] = useState<ArgSource>({ kind: "literal", value: "" });
+  const [stepVarSetValue, setStepVarSetValue] = useState<AssignedValue>({ kind: "literal", value: "" });
   const [stepVarIncrementAmount, setStepVarIncrementAmount] = useState(1);
   const [stepVarCreateType, setStepVarCreateType] = useState<VariableType>("text");
-  const [stepVarCreateInitialValue, setStepVarCreateInitialValue] = useState<string | number | boolean>("");
+  const [stepVarCreateInitialValue, setStepVarCreateInitialValue] = useState<VariableInitialValue>("");
+  const [stepVarArrayNewItem, setStepVarArrayNewItem] = useState("");
   const [stepVarCreateScope, setStepVarCreateScope] = useState<"local" | "global">("local");
   const [stepVarPromptText, setStepVarPromptText] = useState("");
   const [stepVarPromptTitle, setStepVarPromptTitle] = useState("");
@@ -495,6 +514,7 @@ export default function StepListEditor({
     setStepVarIncrementAmount(1);
     setStepVarCreateType("text");
     setStepVarCreateInitialValue("");
+    setStepVarArrayNewItem("");
     setStepVarCreateScope("local");
     setStepVarPromptText("");
     setStepVarPromptTitle("");
@@ -1111,6 +1131,26 @@ export default function StepListEditor({
     return "";
   }
 
+  /** Declared type of the variable a "definir"/"incrementar"/... action targets, if it is a known one. */
+  function varTargetType(name: string): HeaderParamType | undefined {
+    return [...localVariables, ...globalVariables].find((v) => v.key === name)?.type;
+  }
+
+  const isCoordinateVarTarget = varTargetType(stepVarTargetName) === "coordinate";
+
+  /** Keeps the pending "definir" value in the shape the newly picked target variable expects. */
+  function selectVarTarget(name: string) {
+    setStepVarTargetName(name);
+    const wantsCoordinate = varTargetType(name) === "coordinate";
+    setStepVarSetValue((prev) =>
+      wantsCoordinate === (prev.kind === "coordinate")
+        ? prev
+        : wantsCoordinate
+          ? EMPTY_COORDINATE_ASSIGNMENT
+          : { kind: "literal", value: "" }
+    );
+  }
+
   const formZ = 30 + depth * 2;
 
   return (
@@ -1407,7 +1447,7 @@ export default function StepListEditor({
                       <select
                         className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 w-full text-sm appearance-none"
                         value={stepVarTargetName}
-                        onChange={(e) => setStepVarTargetName(e.target.value)}
+                        onChange={(e) => selectVarTarget(e.target.value)}
                       >
                         <option value="">
                           {t("functionsSection.selectVariablePlaceholder", "Selecione uma variável")}
@@ -1434,7 +1474,26 @@ export default function StepListEditor({
                     )}
                   </div>
 
-                  {stepVarAction === "set" && (
+                  {stepVarAction === "set" && isCoordinateVarTarget && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.varActionValueLabel", "Novo valor")}
+                      </label>
+                      <CoordinateValueFields
+                        value={
+                          stepVarSetValue.kind === "coordinate"
+                            ? stepVarSetValue
+                            : EMPTY_COORDINATE_ASSIGNMENT
+                        }
+                        onChange={setStepVarSetValue}
+                        headerParams={headerParams}
+                        localVariables={localVariables}
+                        globalVariables={globalVariables}
+                      />
+                    </div>
+                  )}
+
+                  {stepVarAction === "set" && !isCoordinateVarTarget && (
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between gap-2">
                         <label className="text-xs opacity-70">
@@ -1483,15 +1542,17 @@ export default function StepListEditor({
                           value={String(stepVarSetValue.value ?? "")}
                           onChange={(e) => setStepVarSetValue({ kind: "literal", value: e.target.value })}
                         />
-                      ) : (
-                        <div className="bg-menu-secondary rounded-lg px-3 py-2 text-sm opacity-70 italic">
-                          {t("functionsSection.varActionUsingSource", 'Usando "{{name}}"', {
+                      ) : stepVarSetValue.kind === "coordinate" ? null : (
+                        <ArgSourceValue
+                          arg={stepVarSetValue}
+                          label={t("functionsSection.varActionUsingSource", 'Usando "{{name}}"', {
                             name:
                               stepVarSetValue.kind === "headerParam"
                                 ? stepVarSetValue.paramKey
                                 : stepVarSetValue.variableName,
                           })}
-                        </div>
+                          onChange={setStepVarSetValue}
+                        />
                       )}
                     </div>
                   )}
@@ -1523,42 +1584,124 @@ export default function StepListEditor({
                             onChange={(e) => {
                               const nextType = e.target.value as VariableType;
                               setStepVarCreateType(nextType);
-                              setStepVarCreateInitialValue(nextType === "boolean" ? false : "");
+                              setStepVarCreateInitialValue(defaultVariableValue(nextType));
                             }}
                           >
                             <option value="text">{t("functionsSection.paramTypeText", "Texto")}</option>
                             <option value="number">{t("functionsSection.paramTypeNumber", "Número")}</option>
                             <option value="boolean">{t("functionsSection.paramTypeBoolean", "Booleano")}</option>
+                            <option value="array">{t("functionsSection.paramTypeArray", "Array")}</option>
+                            <option value="coordinate">
+                              {t("functionsSection.paramTypeCoordinate", "Coordenada na tela")}
+                            </option>
                           </select>
                         </div>
-                        <div className="flex flex-col gap-1 flex-1">
+                        {stepVarCreateType !== "array" && stepVarCreateType !== "coordinate" && (
+                          <div className="flex flex-col gap-1 flex-1">
+                            <label className="text-xs opacity-70">
+                              {t("variablesSection.initialValueLabel", "Valor inicial")}
+                            </label>
+                            {stepVarCreateType === "boolean" ? (
+                              <label className="flex items-center gap-2 text-sm cursor-pointer select-none h-9">
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4"
+                                  checked={Boolean(stepVarCreateInitialValue)}
+                                  onChange={(e) => setStepVarCreateInitialValue(e.target.checked)}
+                                />
+                                {t("variablesSection.trueLabel", "Verdadeiro")}
+                              </label>
+                            ) : (
+                              <input
+                                type={stepVarCreateType === "number" ? "number" : "text"}
+                                className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                                value={String(stepVarCreateInitialValue)}
+                                onChange={(e) =>
+                                  setStepVarCreateInitialValue(
+                                    stepVarCreateType === "number" ? Number(e.target.value) : e.target.value
+                                  )
+                                }
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {stepVarCreateType === "coordinate" && (
+                        <div className="flex flex-col gap-1">
                           <label className="text-xs opacity-70">
                             {t("variablesSection.initialValueLabel", "Valor inicial")}
                           </label>
-                          {stepVarCreateType === "boolean" ? (
-                            <label className="flex items-center gap-2 text-sm cursor-pointer select-none h-9">
-                              <input
-                                type="checkbox"
-                                className="w-4 h-4"
-                                checked={Boolean(stepVarCreateInitialValue)}
-                                onChange={(e) => setStepVarCreateInitialValue(e.target.checked)}
-                              />
-                              {t("variablesSection.trueLabel", "Verdadeiro")}
-                            </label>
-                          ) : (
-                            <input
-                              type={stepVarCreateType === "number" ? "number" : "text"}
-                              className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                              value={String(stepVarCreateInitialValue)}
-                              onChange={(e) =>
-                                setStepVarCreateInitialValue(
-                                  stepVarCreateType === "number" ? Number(e.target.value) : e.target.value
-                                )
-                              }
-                            />
-                          )}
+                          <CoordinateLiteralFields
+                            value={toCoordinateLiteral(stepVarCreateInitialValue)}
+                            onChange={setStepVarCreateInitialValue}
+                          />
                         </div>
-                      </div>
+                      )}
+
+                      {stepVarCreateType === "array" && (
+                        <div className="flex flex-col gap-1.5 bg-menu-secondary/60 rounded-lg p-2">
+                          <span className="text-xs opacity-70">
+                            {t("variablesSection.arrayItemsLabel", "Itens iniciais do array")}
+                          </span>
+                          {Array.isArray(stepVarCreateInitialValue) && stepVarCreateInitialValue.length > 0 && (
+                            <ul className="flex flex-wrap gap-1">
+                              {stepVarCreateInitialValue.map((item, index) => (
+                                <li
+                                  key={`${item}-${index}`}
+                                  className="flex items-center gap-1 bg-menu-secondary rounded px-2 py-1 text-xs"
+                                >
+                                  {item}
+                                  <button
+                                    type="button"
+                                    className="opacity-60 hover:opacity-100 cursor-pointer"
+                                    onClick={() =>
+                                      setStepVarCreateInitialValue((prev) =>
+                                        Array.isArray(prev) ? prev.filter((_, i) => i !== index) : prev
+                                      )
+                                    }
+                                  >
+                                    ×
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <div className="flex gap-2">
+                            <input
+                              className="bg-menu-secondary rounded-lg px-2 py-1.5 outline-none text-sm flex-1"
+                              value={stepVarArrayNewItem}
+                              onChange={(e) => setStepVarArrayNewItem(e.target.value)}
+                              placeholder={t("functionsSection.paramOptionPlaceholder", "Ex: Rápido")}
+                              onKeyDown={(e) => {
+                                if (e.key !== "Enter") return;
+                                e.preventDefault();
+                                const value = stepVarArrayNewItem.trim();
+                                if (!value) return;
+                                setStepVarCreateInitialValue((prev) =>
+                                  Array.isArray(prev) ? [...prev, value] : [value]
+                                );
+                                setStepVarArrayNewItem("");
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="button-secondary py-1 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                              disabled={!stepVarArrayNewItem.trim()}
+                              onClick={() => {
+                                const value = stepVarArrayNewItem.trim();
+                                if (!value) return;
+                                setStepVarCreateInitialValue((prev) =>
+                                  Array.isArray(prev) ? [...prev, value] : [value]
+                                );
+                                setStepVarArrayNewItem("");
+                              }}
+                            >
+                              {t("functionsSection.addParamOption", "Adicionar opção")}
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="flex flex-col gap-1">
                         <label className="text-xs opacity-70">

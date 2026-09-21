@@ -6,18 +6,28 @@ import type {
   ParamValues,
 } from "../functions/types";
 
-export type VariableType = "text" | "number" | "boolean";
+export type VariableType = "text" | "number" | "boolean" | "array" | "coordinate";
 export type VariableScope = "local" | "global";
+/** A screen position held by a "coordinate" variable — stored in AHK as an `{x, y}` object. */
+export type CoordinateLiteral = { x: number; y: number };
+export type VariableInitialValue = string | number | boolean | string[] | CoordinateLiteral;
+
+/**
+ * The value a "definir variável" step assigns. A coordinate target takes an X/Y pair, each
+ * half sourced independently (a typed-in number, a header param, another variable...), so
+ * `{x: pos.x + 40, y: 12}` is expressible without an intermediate step.
+ */
+export type AssignedValue = ArgSource | { kind: "coordinate"; x: ArgSource; y: ArgSource };
 
 export type VariableAction =
-  | { action: "set"; targetName: string; value: ArgSource }
+  | { action: "set"; targetName: string; value: AssignedValue }
   | { action: "increment"; targetName: string; amount: number }
   | { action: "toggle"; targetName: string }
   | {
       action: "create";
       targetName: string;
       varType: VariableType;
-      initialValue: string | number | boolean;
+      initialValue: VariableInitialValue;
       scope: VariableScope;
     }
   /** Shows an InputBox and stores the text the user typed into a variable. */
@@ -29,7 +39,7 @@ export type ConditionOperator = "=" | "!=" | ">" | "<" | ">=" | "<=";
 export type ConditionValue =
   | { kind: "variable"; targetName: string; operator: ConditionOperator; value: ArgSource }
   | { kind: "code"; code: string }
-  | { kind: "builtin"; conditionId: string; params: ParamValues };
+  | { kind: "builtin"; conditionId: string; args: ArgValues };
 
 export type FlowControlType = "loop" | "conditional";
 
@@ -138,6 +148,6 @@ export type GlobalVariable = {
   id: number;
   name: string;
   type: VariableType;
-  initialValue: string | number | boolean;
+  initialValue: VariableInitialValue;
 };
 

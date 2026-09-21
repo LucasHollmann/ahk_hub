@@ -3,7 +3,6 @@ import { quoteAhkString, toConditionFunctionName } from "../ahk";
 
 const NAME = "Estado da janela";
 const AHK_FUNCTION_NAME = toConditionFunctionName(NAME);
-const STATE_VALUES: Record<string, number> = { maximized: 1, minimized: -1, normal: 0 };
 
 export const meta: FunctionMeta = {
   id: "condWindowState",
@@ -24,19 +23,28 @@ export const meta: FunctionMeta = {
     },
   ],
   usableDirectly: false,
+  ahkFunctionName: AHK_FUNCTION_NAME,
+  // Takes the state as the same string the picker stores (rather than WinGetMinMax's -1/0/1)
+  // so the signature lines up with `params`, which is what lets a call be built from variables.
   toAhkDeclaration: () =>
     [
       `${AHK_FUNCTION_NAME}(title, state) {`,
+      '    if (title = "")',
+      '        title := "A"',
       "    try {",
-      "        return WinGetMinMax(title) = state",
+      "        current := WinGetMinMax(title)",
       "    } catch {",
       "        return false",
       "    }",
+      '    if (state = "maximized")',
+      "        return current = 1",
+      '    if (state = "minimized")',
+      "        return current = -1",
+      "    return current = 0",
       "}",
     ].join("\n"),
-  toAhkCall: (values) => {
-    const title = String(values.title ?? "") || "A";
-    const state = STATE_VALUES[String(values.state ?? "normal")] ?? 0;
-    return `${AHK_FUNCTION_NAME}(${quoteAhkString(title)}, ${state})`;
-  },
+  toAhkCall: (values) =>
+    `${AHK_FUNCTION_NAME}(${quoteAhkString(String(values.title ?? ""))}, ${quoteAhkString(
+      String(values.state ?? "normal")
+    )})`,
 };

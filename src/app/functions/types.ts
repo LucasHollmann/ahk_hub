@@ -30,17 +30,53 @@ export type HeaderParamDef = {
   options?: ParamOption[];
 };
 
+export type MathOperator = "+" | "-" | "*" | "/";
+
+export const MATH_OPERATORS: MathOperator[] = ["+", "-", "*", "/"];
+
+/** Arithmetic applied to a variable/parameter reference at the point it's read, e.g. `pos.x + 10`. */
+export type ArgMathModifier = { op: MathOperator; amount: number };
+
+/** Which half of a "coordinate" variable a reference reads. Absent on references to scalar variables. */
+export type CoordinateComponent = "x" | "y";
+
 /**
  * A value passed as an argument to a function call within a step body: typed in directly,
  * forwarded from one of the enclosing function's header parameters, or forwarded from a
  * variable — local (declared earlier in the same function's steps) or global (registered
  * in the "Variáveis globais" tab).
+ *
+ * Every non-literal source can carry a `modifier`, so a forwarded value can be shifted
+ * (`+ 10`, `- 5`, ...) without needing a separate "definir variável" step for the arithmetic.
  */
 export type ArgSource =
   | { kind: "literal"; value: string | number | boolean }
-  | { kind: "headerParam"; paramKey: string }
-  | { kind: "localVariable"; variableName: string }
-  | { kind: "globalVariable"; variableName: string };
+  | { kind: "headerParam"; paramKey: string; modifier?: ArgMathModifier }
+  | {
+      kind: "localVariable";
+      variableName: string;
+      component?: CoordinateComponent;
+      modifier?: ArgMathModifier;
+    }
+  | {
+      kind: "globalVariable";
+      variableName: string;
+      component?: CoordinateComponent;
+      modifier?: ArgMathModifier;
+    };
+
+/** The `modifier` of a non-literal source, or undefined for a literal (which has none). */
+export function argModifier(arg: ArgSource): ArgMathModifier | undefined {
+  return arg.kind === "literal" ? undefined : arg.modifier;
+}
+
+/** Same source with its math modifier replaced (or removed, when `modifier` is undefined). */
+export function withArgModifier(arg: ArgSource, modifier: ArgMathModifier | undefined): ArgSource {
+  if (arg.kind === "literal") return arg;
+  const { modifier: _dropped, ...rest } = arg;
+  void _dropped;
+  return modifier ? { ...rest, modifier } : rest;
+}
 
 export type ArgValues = Record<string, ArgSource>;
 
@@ -82,7 +118,10 @@ export function compatibleHeaderParams(
   });
 }
 
-/** "coordinate" header params — candidates to forward into a target's X/Y coordinate pair as a unit. */
+/**
+ * "coordinate" entries in a list of header params / variables — candidates to forward into a
+ * target's X/Y coordinate pair as a unit.
+ */
 export function compatibleCoordinateHeaderParams(headerParams: HeaderParamDef[]): HeaderParamDef[] {
   return headerParams.filter((hp) => hp.type === "coordinate");
 }
@@ -131,6 +170,12 @@ export type FunctionMeta = {
   usableDirectly: boolean;
   /** Returns the AHK function definition for this builtin (declared once, before any hotkey uses it). */
   toAhkDeclaration?: () => string;
+  /**
+   * Name of the function `toAhkDeclaration` defines, set only when its parameter list matches
+   * `params` one-to-one and in order. That's what lets a call be built from arbitrary argument
+   * expressions (variables, header params, `pos.x + 10`...) instead of plain literals.
+   */
+  ahkFunctionName?: string;
   /** Returns the call expression (e.g. `controller_function_Clicar(120, 340, 0)`) used at the hotkey site. */
   toAhkCall?: (values: ParamValues) => string;
 };

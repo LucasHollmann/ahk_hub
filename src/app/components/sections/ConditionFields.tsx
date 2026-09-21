@@ -1,12 +1,14 @@
 "use client";
 
+import type { Dispatch, SetStateAction } from "react";
 import type { ConditionOperator, ConditionValue } from "../types";
 import type { ArgSource, HeaderParamDef } from "../../functions/types";
-import { defaultParamValues, tFunctionDescription, tFunctionName } from "../../functions/types";
+import { defaultArgValues, tFunctionDescription, tFunctionName } from "../../functions/types";
 import { BUILTIN_CONDITIONS } from "../../functions/conditions";
 import { useTranslation } from "../../i18n/I18nContext";
+import ArgSourceValue from "./ArgSourceValue";
 import FunctionPicker, { type FunctionPickerItem } from "./FunctionPicker";
-import ParamsFields from "./ParamsFields";
+import StepArgsFields from "./StepArgsFields";
 
 const OPERATORS: ConditionOperator[] = ["=", "!=", ">", "<", ">=", "<="];
 
@@ -25,7 +27,12 @@ function conditionGroupLabel(id: string, t: ReturnType<typeof useTranslation>["t
 
 type Props = {
   condition: ConditionValue;
-  onChange: (condition: ConditionValue) => void;
+  /**
+   * Takes an updater as well as a plain value: a single edit here can write more than one
+   * field in the same tick (capturing a position fills X and Y), and building the next
+   * condition off the `condition` prop would drop all but the last of them.
+   */
+  onChange: Dispatch<SetStateAction<ConditionValue>>;
   headerParams: HeaderParamDef[];
   localVariables: HeaderParamDef[];
   globalVariables: HeaderParamDef[];
@@ -78,11 +85,11 @@ export default function ConditionFields({
       onChange({
         kind: "builtin",
         conditionId,
-        params:
+        args:
           condition.kind === "builtin" && condition.conditionId === conditionId
-            ? condition.params
+            ? condition.args
             : meta
-              ? defaultParamValues(meta)
+              ? defaultArgValues(meta.params)
               : {},
       });
     }
@@ -161,9 +168,23 @@ export default function ConditionFields({
       )}
 
       {condition.kind === "builtin" && builtinMeta && (
-        <ParamsFields meta={builtinMeta} values={condition.params} onChange={(key, value) =>
-          onChange({ ...condition, params: { ...condition.params, [key]: value } })
-        } resetSignal={0} />
+        <StepArgsFields
+          targetId={builtinMeta.id}
+          params={builtinMeta.params}
+          headerParams={headerParams}
+          localVariables={localVariables}
+          globalVariables={globalVariables}
+          values={condition.args}
+          onChange={(key, arg) =>
+            onChange((prev) =>
+              prev.kind === "builtin" ? { ...prev, args: { ...prev.args, [key]: arg } } : prev
+            )
+          }
+          title={t("paramsFields.title", "Parâmetros de {{name}}", {
+            name: tFunctionName(t, builtinMeta),
+          })}
+          resetSignal={0}
+        />
       )}
 
       {condition.kind === "variable" && (
@@ -273,9 +294,11 @@ export default function ConditionFields({
                 onChange={(e) => onChange({ ...condition, value: { kind: "literal", value: e.target.value } })}
               />
             ) : (
-              <div className="bg-menu-secondary rounded-lg px-3 py-2 text-sm opacity-70 italic">
-                {valueUsingLabel(condition.value)}
-              </div>
+              <ArgSourceValue
+                arg={condition.value}
+                label={valueUsingLabel(condition.value) ?? ""}
+                onChange={(value) => onChange({ ...condition, value })}
+              />
             )}
           </div>
         </>

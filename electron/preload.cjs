@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("desktop", {
   platform: process.platform,
-  startCapturePosition: () => ipcRenderer.send("capture-position:start"),
+  startCapturePosition: (options) => ipcRenderer.send("capture-position:start", options),
   cancelCapturePosition: () => ipcRenderer.send("capture-position:cancel"),
   onPositionCaptured: (callback) => {
     const listener = (_event, result) => callback(result);

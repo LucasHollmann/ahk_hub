@@ -4,6 +4,7 @@ import { meta as clickMeta } from "./click";
 import { meta as openMeta } from "./open";
 import { meta as waitMeta } from "./wait";
 import { meta as activateWindowMeta } from "./activateWindow";
+import { meta as sendToWindowMeta } from "./sendToWindow";
 import { meta as showMessageMeta } from "./showMessage";
 import { meta as manageWindowMeta } from "./manageWindow";
 import { meta as toggleAlwaysOnTopMeta } from "./toggleAlwaysOnTop";
@@ -24,6 +25,7 @@ export const BUILTIN_FUNCTIONS: FunctionMeta[] = [
   openMeta,
   waitMeta,
   activateWindowMeta,
+  sendToWindowMeta,
   showMessageMeta,
   manageWindowMeta,
   toggleAlwaysOnTopMeta,

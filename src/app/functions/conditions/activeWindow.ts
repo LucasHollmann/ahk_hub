@@ -11,6 +11,7 @@ export const meta: FunctionMeta = {
   description: "Verifica se o título da janela ativa contém um texto.",
   params: [{ key: "titleContains", label: "Texto que o título deve conter", type: "text" }],
   usableDirectly: false,
+  ahkFunctionName: AHK_FUNCTION_NAME,
   toAhkDeclaration: () =>
     [
       `${AHK_FUNCTION_NAME}(titleContains) {`,

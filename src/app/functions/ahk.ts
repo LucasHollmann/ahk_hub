@@ -1,4 +1,5 @@
-import type { ArgValues, ParamDef } from "./types";
+import type { CoordinateLiteral, VariableInitialValue, VariableType } from "../components/types";
+import type { ArgSource, ArgValues, ParamDef } from "./types";
 
 const MODIFIER_SYMBOLS: Record<string, string> = {
   Ctrl: "^",
@@ -130,6 +131,59 @@ export function formatAhkArgLiteral(param: ParamDef, value: string | number | bo
   return quoteAhkString(param.sendEscape ? escapeForSend(text) : text);
 }
 
+/** The `{x: 10, y: 20}` object literal a "coordinate" value is stored as in AHK. */
+export function formatCoordinateLiteral(value: CoordinateLiteral): string {
+  return `{x: ${Number(value.x ?? 0)}, y: ${Number(value.y ?? 0)}}`;
+}
+
+/** Formats a variable's initial value literal — handles "array" (an AHK Array() of quoted strings) and "coordinate" (an `{x, y}` object), delegating every other type to `formatAhkArgLiteral`. */
+export function formatVariableInitialLiteral(type: VariableType, value: VariableInitialValue): string {
+  if (type === "array") {
+    const items = Array.isArray(value) ? value : [];
+    return `[${items.map((item) => quoteAhkString(item)).join(", ")}]`;
+  }
+  if (type === "coordinate") {
+    return formatCoordinateLiteral(toCoordinateLiteral(value));
+  }
+  return formatAhkArgLiteral({ key: "", label: "", type }, value as string | number | boolean);
+}
+
+/** The value a variable starts out with when its type is (re)chosen in a form. */
+export function defaultVariableValue(type: VariableType): VariableInitialValue {
+  if (type === "boolean") return false;
+  if (type === "number") return 0;
+  if (type === "array") return [];
+  if (type === "coordinate") return { x: 0, y: 0 };
+  return "";
+}
+
+/** Reads a stored initial value as a coordinate, falling back to the origin for values saved under another type. */
+export function toCoordinateLiteral(value: VariableInitialValue): CoordinateLiteral {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? { x: Number(value.x ?? 0), y: Number(value.y ?? 0) }
+    : { x: 0, y: 0 };
+}
+
+/**
+ * The raw AHK identifier a non-literal argument source reads — a plain name, or `name.x` /
+ * `name.y` when only one half of a coordinate variable is wanted.
+ */
+export function argSourceIdentifier(arg: ArgSource): string {
+  if (arg.kind === "literal") return "";
+  if (arg.kind === "headerParam") return arg.paramKey;
+  return arg.component ? `${arg.variableName}.${arg.component}` : arg.variableName;
+}
+
+/**
+ * The AHK expression a non-literal argument source evaluates to, with the user's math modifier
+ * applied. Parenthesised so it stays a single operand wherever it's embedded.
+ */
+export function argSourceExpression(arg: ArgSource): string {
+  const identifier = argSourceIdentifier(arg);
+  const modifier = arg.kind === "literal" ? undefined : arg.modifier;
+  return modifier ? `(${identifier} ${modifier.op} ${modifier.amount})` : identifier;
+}
+
 /**
  * Renders a call's argument list in `params` order. An argument sourced from a header
  * parameter or a variable (local or global) is emitted as that identifier's raw AHK name
@@ -140,8 +194,7 @@ export function formatAhkCallArgs(params: ParamDef[], args: ArgValues): string {
   return params
     .map((p) => {
       const arg = args[p.key];
-      if (arg?.kind === "headerParam") return arg.paramKey;
-      if (arg?.kind === "localVariable" || arg?.kind === "globalVariable") return arg.variableName;
+      if (arg && arg.kind !== "literal") return argSourceExpression(arg);
       const value = arg?.kind === "literal" ? arg.value : p.type === "boolean" ? false : "";
       return formatAhkArgLiteral(p, value);
     })

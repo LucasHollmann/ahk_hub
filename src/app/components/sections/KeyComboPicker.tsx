@@ -31,19 +31,28 @@ function formatKeyName(key: string) {
   return key;
 }
 
+const NO_MODIFIERS: Record<Modifier, boolean> = {
+  Ctrl: false,
+  Shift: false,
+  Alt: false,
+  Win: false,
+};
+
 function parseCombo(combo: string) {
   const parts = combo.split("+");
   const key = parts.pop() ?? "";
-  const modifiers: Record<Modifier, boolean> = {
-    Ctrl: false,
-    Shift: false,
-    Alt: false,
-    Win: false,
-  };
+  const modifiers: Record<Modifier, boolean> = { ...NO_MODIFIERS };
   for (const part of parts) {
     if (part in modifiers) modifiers[part as Modifier] = true;
   }
   return { modifiers, key };
+}
+
+/** Inverse of `parseCombo`. Applying both in sequence is idempotent, which is what keeps the echo below from oscillating. */
+function formatCombo(modifiers: Record<Modifier, boolean>, key: string): string {
+  const parts: string[] = MODIFIERS.filter((m) => modifiers[m]);
+  if (key) parts.push(key);
+  return parts.join("+");
 }
 
 type Props = {
@@ -54,35 +63,51 @@ type Props = {
 
 export default function KeyComboPicker({ resetSignal, onChange, initialValue }: Props) {
   const { t } = useTranslation();
-  const [modifiers, setModifiers] = useState<Record<Modifier, boolean>>({
-    Ctrl: false,
-    Shift: false,
-    Alt: false,
-    Win: false,
-  });
-  const [key, setKey] = useState("");
+  const [modifiers, setModifiers] = useState<Record<Modifier, boolean>>(() =>
+    parseCombo(initialValue ?? "").modifiers
+  );
+  const [key, setKey] = useState(() => parseCombo(initialValue ?? "").key);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isModifierMenuOpen, setIsModifierMenuOpen] = useState(false);
   const otherKeyDuringHold = useRef(false);
   const keyInputRef = useRef<HTMLInputElement>(null);
   const modifierMenuRef = useRef<HTMLDivElement>(null);
 
+  // Read through a ref so the echo below never depends on the identity of a callback that
+  // most callers declare inline, and so re-rendering can never re-fire it on its own.
+  const onChangeRef = useRef(onChange);
   useEffect(() => {
-    if (initialValue) {
-      const parsed = parseCombo(initialValue);
-      setModifiers(parsed.modifiers);
-      setKey(parsed.key);
-    } else {
-      setModifiers({ Ctrl: false, Shift: false, Alt: false, Win: false });
-      setKey("");
-    }
-  }, [resetSignal, initialValue]);
+    onChangeRef.current = onChange;
+  });
 
+  /**
+   * Re-derives the picked combo when the caller hands over a different value (or bumps
+   * resetSignal). Keyed on a token and done while rendering rather than in an effect, so a
+   * re-render with unchanged props leaves `modifiers` alone — allocating a fresh object
+   * every time would re-trigger the echo below on every render.
+   */
+  const syncToken = `${resetSignal}\n${initialValue ?? ""}`;
+  const [syncedToken, setSyncedToken] = useState(syncToken);
+  if (syncedToken !== syncToken) {
+    const parsed = parseCombo(initialValue ?? "");
+    setSyncedToken(syncToken);
+    setModifiers(parsed.modifiers);
+    setKey(parsed.key);
+  }
+
+  /**
+   * Reports the current combo upward. Callers rely on this to pick up the value the picker
+   * settled on, including the one parsed out of `initialValue` — but it reports only what it
+   * has not reported before. Without that guard the component feeds the parent a value that
+   * comes straight back in as `initialValue`, and any parent whose setter allocates a new
+   * object drives the pair into an endless update loop.
+   */
+  const lastReportedRef = useRef<string | null>(null);
   useEffect(() => {
-    const parts = MODIFIERS.filter((m) => modifiers[m]);
-    if (key) parts.push(key as Modifier);
-    onChange(parts.join("+"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const combo = formatCombo(modifiers, key);
+    if (lastReportedRef.current === combo) return;
+    lastReportedRef.current = combo;
+    onChangeRef.current(combo);
   }, [modifiers, key]);
 
   useEffect(() => {

@@ -10,6 +10,10 @@ export type CapturedWindow = {
 export type CapturedPosition = {
   point: { x: number; y: number };
   window: CapturedWindow | null;
+  /** Screen pixel under the cursor as "0xRRGGBB" — only present when the capture asked for it, and null if the screen couldn't be sampled. */
+  color: string | null;
+  /** ClassNN of the control under the cursor — only present when the capture asked for it, and null if AutoHotkey couldn't be reached or there is no control there. */
+  control: string | null;
 };
 
 export type SaveScriptResult =
@@ -50,7 +54,7 @@ declare global {
   interface Window {
     desktop?: {
       platform: string;
-      startCapturePosition: () => void;
+      startCapturePosition: (options?: { withColor?: boolean; withControl?: boolean }) => void;
       cancelCapturePosition: () => void;
       onPositionCaptured: (
         callback: (result: CapturedPosition) => void

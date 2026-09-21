@@ -15,6 +15,12 @@ function basename(filePath: string) {
   return filePath.split(/[\\/]/).pop() ?? filePath;
 }
 
+/** Keeps the first entry of each name — the one every `find` by name already resolves to. */
+function dedupeByName<T extends { name: string }>(entries: T[]): T[] {
+  const seen = new Set<string>();
+  return entries.filter((entry) => (seen.has(entry.name) ? false : (seen.add(entry.name), true)));
+}
+
 export default function Dashboard() {
   const { t, locale, setLocale } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>("remappings");
@@ -27,6 +33,30 @@ export default function Dashboard() {
 
   function generateId() {
     return nextIdRef.current++;
+  }
+
+  /**
+   * Takes over a script that was just loaded. Ids only live in the saved file as an
+   * implementation detail of this session's counter, so every entry is renumbered from a
+   * reset counter: that guarantees no collision with ids handed out afterwards, and it
+   * repairs files written before this existed (where the counter stayed at 1 after a load,
+   * so the next entry reused an id already in the list).
+   *
+   * Functions and variables are also deduplicated by name, since the name is what
+   * remappings and step calls resolve against — a second entry under the same name is
+   * already shadowed by the first everywhere it is looked up.
+   */
+  function adoptLoadedState(parsed: {
+    remappings: Remapping[];
+    functions: FunctionEntry[];
+    variables: GlobalVariable[];
+  }) {
+    nextIdRef.current = 1;
+    return {
+      remappings: parsed.remappings.map((r) => ({ ...r, id: generateId() })),
+      functions: dedupeByName(parsed.functions).map((f) => ({ ...f, id: generateId() })),
+      variables: dedupeByName(parsed.variables).map((v) => ({ ...v, id: generateId() })),
+    };
   }
 
   function applyTitle(path: string | null) {
@@ -70,6 +100,11 @@ export default function Dashboard() {
 
   function removeFunction(id: number) {
     setFunctions((prev) => prev.filter((f) => f.id !== id));
+  }
+
+  function reorderFunctions(next: FunctionEntry[]) {
+    setFunctions(next);
+    autoSaveAndReload(remappings, next, variables);
   }
 
   function addRemapping(remapping: Omit<Remapping, "id">) {
@@ -222,9 +257,10 @@ export default function Dashboard() {
       return;
     }
 
-    setFunctions(parsed.functions);
-    setRemappings(parsed.remappings);
-    setVariables(parsed.variables);
+    const loaded = adoptLoadedState(parsed);
+    setFunctions(loaded.functions);
+    setRemappings(loaded.remappings);
+    setVariables(loaded.variables);
     setLastSavedPath(result.path);
     applyTitle(result.path);
     setSaveStatus(t("dashboard.loadedFrom", "Script carregado de {{path}}", { path: result.path }));
@@ -331,6 +367,7 @@ export default function Dashboard() {
               onAdd={addFunction}
               onUpdate={updateFunction}
               onRemove={removeFunction}
+              onReorder={reorderFunctions}
               globalVariables={variables}
               onRegisterGlobalVariable={registerGlobalVariable}
             />

@@ -14,6 +14,7 @@ export const meta: FunctionMeta = {
     { key: "to", label: "Até (HH:mm)", type: "text" },
   ],
   usableDirectly: false,
+  ahkFunctionName: AHK_FUNCTION_NAME,
   toAhkDeclaration: () =>
     [
       `${AHK_FUNCTION_NAME}(fromStr, toStr) {`,

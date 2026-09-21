@@ -6,8 +6,8 @@ import { BUILTIN_CONDITIONS } from "./conditions";
 import {
   comboToHotkey,
   comboToKeyWaitName,
-  formatAhkArgLiteral,
   formatAhkCallArgs,
+  formatVariableInitialLiteral,
   toConditionFunctionName,
   toSystemFunctionName,
 } from "./ahk";
@@ -89,7 +89,7 @@ export function generateAhkScript(
   if (variables.length > 0) {
     lines.push("; ==== Variáveis globais ====", "");
     for (const v of variables) {
-      lines.push(`${v.name} := ${formatAhkArgLiteral({ key: v.name, label: v.name, type: v.type }, v.initialValue)}`);
+      lines.push(`${v.name} := ${formatVariableInitialLiteral(v.type, v.initialValue)}`);
     }
     lines.push("");
   }
@@ -114,14 +114,22 @@ export function generateAhkScript(
       lines.push("");
     }
 
-    for (const name of usedCustomFunctions) {
-      const entry = functions.find((f) => f.name === name);
-      if (entry?.code?.trim()) {
-        lines.push(entry.code.trim());
-      } else {
-        lines.push(`; TODO: implementar "${name}"`);
-      }
+    // Declared in the order the Functions tab lists them, which the user controls by
+    // dragging, rather than in the order the dependency walk happened to discover them.
+    // Only the first entry of a given name is emitted: AHK rejects a duplicate definition,
+    // and everything else here resolves a name to that same first entry.
+    const declared = new Set<string>();
+    for (const entry of functions) {
+      if (!usedCustomFunctions.has(entry.name) || declared.has(entry.name)) continue;
+      declared.add(entry.name);
+      lines.push(entry.code?.trim() || `; TODO: implementar "${entry.name}"`);
       lines.push("");
+    }
+
+    // Names reached from a remapping that no longer have an entry at all.
+    for (const name of usedCustomFunctions) {
+      if (declared.has(name)) continue;
+      lines.push(`; TODO: implementar "${name}"`, "");
     }
   }
 

@@ -1,6 +1,17 @@
-const { app, BrowserWindow, Menu, ipcMain, globalShortcut, screen, dialog, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  ipcMain,
+  globalShortcut,
+  screen,
+  desktopCapturer,
+  dialog,
+  shell,
+} = require("electron");
 const path = require("node:path");
 const fs = require("node:fs/promises");
+const { execFile } = require("node:child_process");
 const { uIOhook, UiohookKey } = require("uiohook-napi");
 
 const isDevelopment = !app.isPackaged;
@@ -223,11 +234,158 @@ function stopCapturePosition() {
   }
 }
 
-ipcMain.on("capture-position:start", (event) => {
+// Reads the screen pixel under `point` as "0xRRGGBB" — the same notation AutoHotkey's
+// PixelGetColor returns, so the captured value can be compared against it directly.
+// Electron has no pixel-level screen API, so this grabs the containing display as an
+// image and samples it; only done when the caller asks for a color.
+async function pixelColorAt(point) {
+  try {
+    const display = screen.getDisplayNearestPoint(point);
+    const { bounds, scaleFactor } = display;
+    const sources = await desktopCapturer.getSources({
+      types: ["screen"],
+      thumbnailSize: {
+        width: Math.round(bounds.width * scaleFactor),
+        height: Math.round(bounds.height * scaleFactor),
+      },
+    });
+
+    const source =
+      sources.find((s) => String(s.display_id) === String(display.id)) ?? sources[0];
+    const image = source?.thumbnail;
+    if (!image || image.isEmpty()) return null;
+
+    const size = image.getSize();
+    const clamp = (value, max) => Math.min(Math.max(value, 0), max - 1);
+    const x = clamp(Math.round((point.x - bounds.x) * (size.width / bounds.width)), size.width);
+    const y = clamp(Math.round((point.y - bounds.y) * (size.height / bounds.height)), size.height);
+
+    // toBitmap() is BGRA, one pixel here.
+    const [b, g, r] = image.crop({ x, y, width: 1, height: 1 }).toBitmap();
+    const hex = (channel) => channel.toString(16).padStart(2, "0").toUpperCase();
+    return `0x${hex(r)}${hex(g)}${hex(b)}`;
+  } catch {
+    // screen capture unavailable or denied; the position alone is still useful
+    return null;
+  }
+}
+
+// ==== Reading the control under the cursor ====
+
+// AutoHotkey itself resolves this, rather than Win32 calls from here: the ClassNN it reports
+// is by definition the one ControlSend will accept, and reimplementing how AHK numbers
+// same-class siblings would risk producing a name that silently targets the wrong control.
+const CONTROL_PROBE_SCRIPT = [
+  "#Requires AutoHotkey v2.0",
+  "#SingleInstance Off",
+  "MouseGetPos &x, &y, &win, &control",
+  'FileAppend control, "*"',
+  "ExitApp",
+].join("\r\n");
+
+const CONTROL_PROBE_TIMEOUT_MS = 4000;
+
+let ahkExecutablePromise = null;
+let controlProbePathPromise = null;
+
+async function firstExistingPath(candidates) {
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // keep looking
+    }
+  }
+  return null;
+}
+
+// The app launches scripts through the .ahk file association, so it never needed the
+// interpreter's path before — this looks it up in the usual install locations, then in the
+// key the installer writes.
+function findAutoHotkey() {
+  if (!ahkExecutablePromise) {
+    ahkExecutablePromise = (async () => {
+      const programFiles = process.env.ProgramFiles || "C:\\Program Files";
+      const localAppData = process.env.LOCALAPPDATA || "";
+      const found = await firstExistingPath([
+        path.join(programFiles, "AutoHotkey", "v2", "AutoHotkey.exe"),
+        path.join(programFiles, "AutoHotkey", "AutoHotkey.exe"),
+        localAppData && path.join(localAppData, "Programs", "AutoHotkey", "v2", "AutoHotkey.exe"),
+      ]);
+      if (found) return found;
+
+      const installDir = await new Promise((resolve) => {
+        execFile(
+          "reg",
+          ["query", "HKLM\\SOFTWARE\\AutoHotkey", "/v", "InstallDir"],
+          { windowsHide: true },
+          (error, stdout) => {
+            const match = !error && /InstallDir\s+REG_SZ\s+(.+)/i.exec(stdout);
+            resolve(match ? match[1].trim() : null);
+          }
+        );
+      });
+      if (!installDir) return null;
+
+      return firstExistingPath([
+        path.join(installDir, "v2", "AutoHotkey.exe"),
+        path.join(installDir, "AutoHotkey.exe"),
+      ]);
+    })();
+  }
+  return ahkExecutablePromise;
+}
+
+function controlProbePath() {
+  if (!controlProbePathPromise) {
+    controlProbePathPromise = (async () => {
+      const file = path.join(app.getPath("temp"), "ahk-hub-control-probe.ahk");
+      await fs.writeFile(file, CONTROL_PROBE_SCRIPT, "utf-8");
+      return file;
+    })();
+  }
+  return controlProbePathPromise;
+}
+
+/**
+ * ClassNN of the control under the cursor, as Window Spy would report it, or null when
+ * AutoHotkey isn't installed where we can find it or the point isn't over a control.
+ * Reads the cursor position when the probe runs, a moment after F8 — the same "hover and
+ * press" gesture Window Spy uses, so holding still is already what the user is doing.
+ */
+async function controlUnderCursor() {
+  const executable = await findAutoHotkey();
+  if (!executable) return null;
+
+  try {
+    const script = await controlProbePath();
+    const stdout = await new Promise((resolve, reject) => {
+      execFile(
+        executable,
+        // Without /ErrorStdOut a failing probe pops up AutoHotkey's error dialog over
+        // whatever the user is pointing at.
+        ["/ErrorStdOut", script],
+        { timeout: CONTROL_PROBE_TIMEOUT_MS, windowsHide: true },
+        (error, out) => (error ? reject(error) : resolve(out))
+      );
+    });
+    const control = String(stdout).trim();
+    return control || null;
+  } catch {
+    // probe failed or timed out; the capture still reports the position
+    return null;
+  }
+}
+
+ipcMain.on("capture-position:start", (event, options) => {
   stopCapturePosition();
   globalShortcut.register(CAPTURE_POSITION_KEY, async () => {
     stopCapturePosition();
     const point = screen.getCursorScreenPoint();
+    const color = options?.withColor ? await pixelColorAt(point) : null;
+    const control = options?.withControl ? await controlUnderCursor() : null;
 
     let window = null;
     try {
@@ -248,7 +406,7 @@ ipcMain.on("capture-position:start", (event) => {
       // window detection unavailable on this platform; global position still works
     }
 
-    event.sender.send("capture-position:result", { point, window });
+    event.sender.send("capture-position:result", { point, window, color, control });
   });
 });
 

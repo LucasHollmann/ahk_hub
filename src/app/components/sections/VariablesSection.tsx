@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { GlobalVariable, VariableType } from "../types";
-import { isValidAhkIdentifier } from "../../functions/ahk";
+import type { CoordinateLiteral, GlobalVariable, VariableInitialValue, VariableType } from "../types";
+import {
+  defaultVariableValue,
+  isValidAhkIdentifier,
+  toCoordinateLiteral,
+} from "../../functions/ahk";
 import { useTranslation } from "../../i18n/I18nContext";
+import { CoordinateLiteralFields } from "./CoordinateFields";
 
 type Props = {
   variables: GlobalVariable[];
@@ -12,8 +17,68 @@ type Props = {
   onRemoveVariable: (id: number) => void;
 };
 
-function defaultValueFor(type: VariableType): string | number | boolean {
-  return type === "boolean" ? false : type === "number" ? 0 : "";
+function ArrayValueField({
+  items,
+  onChange,
+}: {
+  items: string[];
+  onChange: (items: string[]) => void;
+}) {
+  const { t } = useTranslation();
+  const [newItem, setNewItem] = useState("");
+
+  function addItem() {
+    const value = newItem.trim();
+    if (!value) return;
+    onChange([...items, value]);
+    setNewItem("");
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 bg-menu-secondary/60 rounded-lg p-2">
+      {items.length > 0 && (
+        <ul className="flex flex-wrap gap-1">
+          {items.map((item, index) => (
+            <li
+              key={`${item}-${index}`}
+              className="flex items-center gap-1 bg-menu-secondary rounded px-2 py-1 text-xs"
+            >
+              {item}
+              <button
+                type="button"
+                className="opacity-60 hover:opacity-100 cursor-pointer"
+                onClick={() => onChange(items.filter((_, i) => i !== index))}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex gap-2">
+        <input
+          className="bg-menu-secondary rounded-lg px-2 py-1.5 outline-none text-sm flex-1"
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          placeholder={t("functionsSection.paramOptionPlaceholder", "Ex: Rápido")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addItem();
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="button-secondary py-1 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled={!newItem.trim()}
+          onClick={addItem}
+        >
+          {t("functionsSection.addParamOption", "Adicionar opção")}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function ValueField({
@@ -69,7 +134,22 @@ function variableTypeLabel(t: ReturnType<typeof useTranslation>["t"], type: Vari
     ? t("functionsSection.paramTypeText", "Texto")
     : type === "number"
       ? t("functionsSection.paramTypeNumber", "Número")
-      : t("functionsSection.paramTypeBoolean", "Booleano");
+      : type === "boolean"
+        ? t("functionsSection.paramTypeBoolean", "Booleano")
+        : type === "coordinate"
+          ? t("functionsSection.paramTypeCoordinate", "Coordenada na tela")
+          : t("functionsSection.paramTypeArray", "Array");
+}
+
+/** How a variable's initial value reads in the list — an array's items, a coordinate's pair, or the plain value. */
+function initialValueLabel(variable: GlobalVariable): string {
+  if (variable.type === "boolean") return variable.initialValue ? "true" : "false";
+  if (Array.isArray(variable.initialValue)) return `[${variable.initialValue.join(", ")}]`;
+  if (variable.type === "coordinate") {
+    const point = toCoordinateLiteral(variable.initialValue);
+    return `(${point.x}, ${point.y})`;
+  }
+  return String(variable.initialValue);
 }
 
 export default function VariablesSection({
@@ -84,7 +164,7 @@ export default function VariablesSection({
   const [editingVarId, setEditingVarId] = useState<number | null>(null);
   const [varName, setVarName] = useState("");
   const [varType, setVarType] = useState<VariableType>("text");
-  const [varInitialValue, setVarInitialValue] = useState<string | number | boolean>("");
+  const [varInitialValue, setVarInitialValue] = useState<VariableInitialValue>("");
 
   const trimmedVarName = varName.trim();
 
@@ -163,7 +243,7 @@ export default function VariablesSection({
               <span className="font-semibold font-mono text-sm">{v.name}</span>
               <span className="text-xs opacity-70">
                 {variableTypeLabel(t, v.type)} · {t("variablesSection.initialValue", "valor inicial")}:{" "}
-                {v.type === "boolean" ? (v.initialValue ? "true" : "false") : String(v.initialValue)}
+                {initialValueLabel(v)}
               </span>
             </div>
             <div className="flex gap-2">
@@ -223,20 +303,38 @@ export default function VariablesSection({
                 onChange={(e) => {
                   const nextType = e.target.value as VariableType;
                   setVarType(nextType);
-                  setVarInitialValue(defaultValueFor(nextType));
+                  setVarInitialValue(defaultVariableValue(nextType));
                 }}
               >
                 <option value="text">{t("functionsSection.paramTypeText", "Texto")}</option>
                 <option value="number">{t("functionsSection.paramTypeNumber", "Número")}</option>
                 <option value="boolean">{t("functionsSection.paramTypeBoolean", "Booleano")}</option>
+                <option value="array">{t("functionsSection.paramTypeArray", "Array")}</option>
+                <option value="coordinate">
+                  {t("functionsSection.paramTypeCoordinate", "Coordenada na tela")}
+                </option>
               </select>
             </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-xs opacity-70">
-                {t("variablesSection.initialValueLabel", "Valor inicial")}
+                {varType === "array"
+                  ? t("variablesSection.arrayItemsLabel", "Itens iniciais do array")
+                  : t("variablesSection.initialValueLabel", "Valor inicial")}
               </label>
-              <ValueField type={varType} value={varInitialValue} onChange={setVarInitialValue} />
+              {varType === "array" ? (
+                <ArrayValueField
+                  items={Array.isArray(varInitialValue) ? varInitialValue : []}
+                  onChange={setVarInitialValue}
+                />
+              ) : varType === "coordinate" ? (
+                <CoordinateLiteralFields
+                  value={toCoordinateLiteral(varInitialValue)}
+                  onChange={(point: CoordinateLiteral) => setVarInitialValue(point)}
+                />
+              ) : (
+                <ValueField type={varType} value={varInitialValue as string | number | boolean} onChange={setVarInitialValue} />
+              )}
             </div>
 
             <div className="flex gap-2 justify-end">

@@ -19,6 +19,7 @@ export const meta: FunctionMeta = {
     },
   ],
   usableDirectly: false,
+  ahkFunctionName: AHK_FUNCTION_NAME,
   toAhkDeclaration: () =>
     [
       `${AHK_FUNCTION_NAME}(x, y, fullScreen) {`,

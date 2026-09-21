@@ -1,4 +1,5 @@
 import type {
+  AssignedValue,
   ConditionValue,
   FlowControlType,
   FunctionEntry,
@@ -8,19 +9,24 @@ import type {
   SerializedMenuItemTarget,
   SerializedStep,
   VariableAction,
+  VariableInitialValue,
   VariableType,
 } from "../types";
 import { BUILTIN_FUNCTIONS } from "../../functions/builtins";
 import { BUILTIN_CONDITIONS } from "../../functions/conditions";
 import {
-  formatAhkArgLiteral,
+  argSourceExpression,
+  argSourceIdentifier,
   formatAhkCallArgs,
+  formatVariableInitialLiteral,
   quoteAhkString,
   toAhkLabel,
+  toCoordinateLiteral,
   toSystemFunctionName,
 } from "../../functions/ahk";
 import {
-  areParamsFilled,
+  areArgsFilled,
+  defaultArgValues,
   expandHeaderParamsToCallParams,
   tFunctionName,
   type ArgSource,
@@ -149,8 +155,14 @@ export function toLiteralParamValues(params: ParamDef[], args: ArgValues): Param
 
 export function argSourceText(arg: ArgSource): string | null {
   if (arg.kind === "literal") return arg.value === "" || arg.value === false ? null : String(arg.value);
-  if (arg.kind === "headerParam") return arg.paramKey;
-  return arg.variableName;
+  const identifier = argSourceIdentifier(arg);
+  return arg.modifier ? `${identifier} ${arg.modifier.op} ${arg.modifier.amount}` : identifier;
+}
+
+/** Same as `argSourceText`, but for a "definir variavel" value, which may be an X/Y pair. */
+export function assignedValueText(value: AssignedValue): string | null {
+  if (value.kind !== "coordinate") return argSourceText(value);
+  return `(${argSourceText(value.x) ?? 0}, ${argSourceText(value.y) ?? 0})`;
 }
 
 export function argSummary(params: ParamDef[], args: ArgValues): string {
@@ -173,15 +185,34 @@ export function formatFreeLiteral(raw: string): string {
 
 export function formatArgSourceForAssignment(value: ArgSource): string {
   if (value.kind === "literal") return formatFreeLiteral(String(value.value ?? ""));
-  if (value.kind === "headerParam") return value.paramKey;
-  return value.variableName;
+  return argSourceExpression(value);
+}
+
+/** The AHK right-hand side of a "definir variavel" step — an `{x, y}` object for a coordinate target. */
+export function formatAssignedValue(value: AssignedValue): string {
+  if (value.kind !== "coordinate") return formatArgSourceForAssignment(value);
+  const x = value.x.kind === "literal" ? String(Number(value.x.value ?? 0)) : argSourceExpression(value.x);
+  const y = value.y.kind === "literal" ? String(Number(value.y.value ?? 0)) : argSourceExpression(value.y);
+  return `{x: ${x}, y: ${y}}`;
+}
+
+/** Every argument source inside a "definir variavel" value — one, or the two halves of a coordinate. */
+export function assignedValueSources(value: AssignedValue): ArgSource[] {
+  return value.kind === "coordinate" ? [value.x, value.y] : [value];
 }
 
 export function conditionToAhkExpression(condition: ConditionValue): string {
   if (condition.kind === "code") return condition.code.trim() || "true";
   if (condition.kind === "builtin") {
     const meta = BUILTIN_CONDITIONS.find((c) => c.id === condition.conditionId);
-    return meta?.toAhkCall ? meta.toAhkCall(condition.params) : "true";
+    if (!meta) return "true";
+    // Same split as `builtinCallExpr`: an all-literal condition keeps its own (often inline,
+    // more readable) rendering, while anything sourced from a variable has to go through the
+    // declared function, whose parameters can hold an arbitrary expression.
+    if (hasHeaderRef(condition.args) && meta.ahkFunctionName) {
+      return `${meta.ahkFunctionName}(${formatAhkCallArgs(meta.params, condition.args)})`;
+    }
+    return meta.toAhkCall ? meta.toAhkCall(toLiteralParamValues(meta.params, condition.args)) : "true";
   }
   return `${condition.targetName} ${condition.operator} ${formatArgSourceForAssignment(condition.value)}`;
 }
@@ -190,7 +221,7 @@ export function isConditionReady(condition: ConditionValue): boolean {
   if (condition.kind === "code") return condition.code.trim() !== "";
   if (condition.kind === "builtin") {
     const meta = BUILTIN_CONDITIONS.find((c) => c.id === condition.conditionId);
-    return Boolean(meta) && areParamsFilled(meta!, condition.params);
+    return Boolean(meta) && areArgsFilled(meta!.params, condition.args);
   }
   return (
     condition.targetName !== "" &&
@@ -207,7 +238,7 @@ export function stepLabel(t: Translate, step: Step, functions: FunctionEntry[]):
     return summary ? `${step.functionName}(${summary})` : `${step.functionName}()`;
   }
   if (step.kind === "variableAction") {
-    if (step.action === "set") return `${step.targetName} := ${argSourceText(step.value) ?? '""'}`;
+    if (step.action === "set") return `${step.targetName} := ${assignedValueText(step.value) ?? '""'}`;
     if (step.action === "increment") return `${step.targetName} += ${step.amount}`;
     if (step.action === "toggle") return `${step.targetName} := !${step.targetName}`;
     if (step.action === "promptInput") return `${step.targetName} := InputBox("${step.prompt}")`;
@@ -215,7 +246,12 @@ export function stepLabel(t: Translate, step: Step, functions: FunctionEntry[]):
       step.scope === "global"
         ? t("functionsSection.varActionCreateGlobalTag", "global")
         : t("functionsSection.varActionCreateLocalTag", "local");
-    return `${t("functionsSection.varActionCreateTag", "criar")} (${scopeLabel}) ${step.targetName} = ${String(step.initialValue)}`;
+    const initialValueLabel = Array.isArray(step.initialValue)
+      ? `[${step.initialValue.join(", ")}]`
+      : step.varType === "coordinate"
+        ? coordinateText(toCoordinateLiteral(step.initialValue))
+        : String(step.initialValue);
+    return `${t("functionsSection.varActionCreateTag", "criar")} (${scopeLabel}) ${step.targetName} = ${initialValueLabel}`;
   }
   if (step.kind === "flowControl") {
     const expr = conditionToAhkExpression(step.condition);
@@ -245,8 +281,10 @@ export function stepLabel(t: Translate, step: Step, functions: FunctionEntry[]):
 function collectStepGlobalNames(step: Step, globalVariables: GlobalVariable[], acc: Set<string>) {
   if (step.kind === "variableAction") {
     if (step.action === "create" && step.scope === "global") acc.add(step.targetName);
-    else if (step.action === "set" && step.value.kind === "globalVariable") {
-      acc.add(step.value.variableName);
+    else if (step.action === "set") {
+      for (const source of assignedValueSources(step.value)) {
+        if (source.kind === "globalVariable") acc.add(source.variableName);
+      }
     }
     if (
       (step.action === "set" ||
@@ -262,6 +300,10 @@ function collectStepGlobalNames(step: Step, globalVariables: GlobalVariable[], a
     if (condition.kind === "variable") {
       if (globalVariables.some((v) => v.name === condition.targetName)) acc.add(condition.targetName);
       if (condition.value.kind === "globalVariable") acc.add(condition.value.variableName);
+    } else if (condition.kind === "builtin") {
+      for (const arg of Object.values(condition.args)) {
+        if (arg.kind === "globalVariable") acc.add(arg.variableName);
+      }
     }
     for (const s of step.body) collectStepGlobalNames(s, globalVariables, acc);
     if (step.elseBody) for (const s of step.elseBody) collectStepGlobalNames(s, globalVariables, acc);
@@ -295,11 +337,21 @@ export function collectGlobalNames(steps: Step[], globalVariables: GlobalVariabl
 }
 
 /** Every local variable created anywhere in this function's step tree — AHK locals are function-scoped, not block-scoped, so a variable created inside a loop/conditional body is visible everywhere else in the same function too. */
+/** Renders a coordinate value the way step summaries show it, e.g. `(120, 340)`. */
+export function coordinateText(point: { x: number; y: number }): string {
+  return `(${point.x}, ${point.y})`;
+}
+
 export function collectAllLocalVariableCreations(steps: Step[]): HeaderParamDef[] {
   const result: HeaderParamDef[] = [];
   function walk(list: Step[]) {
     for (const step of list) {
-      if (step.kind === "variableAction" && step.action === "create" && step.scope === "local") {
+      if (
+        step.kind === "variableAction" &&
+        step.action === "create" &&
+        step.scope === "local" &&
+        step.varType !== "array"
+      ) {
         result.push({ key: step.targetName, label: step.targetName, type: step.varType });
       } else if (step.kind === "flowControl") {
         walk(step.body);
@@ -350,8 +402,8 @@ export function collectAllGuiVariablesAcrossFunctions(functions: FunctionEntry[]
 /** Every "create global variable" action anywhere in the step tree, for auto-registering into the Variáveis globais tab. */
 export function collectGlobalVariableCreations(
   steps: Step[]
-): { name: string; type: VariableType; initialValue: string | number | boolean }[] {
-  const result: { name: string; type: VariableType; initialValue: string | number | boolean }[] = [];
+): { name: string; type: VariableType; initialValue: VariableInitialValue }[] {
+  const result: { name: string; type: VariableType; initialValue: VariableInitialValue }[] = [];
   function walk(list: Step[]) {
     for (const step of list) {
       if (step.kind === "variableAction" && step.action === "create" && step.scope === "global") {
@@ -533,7 +585,7 @@ function stepToAhkLines(step: Step, allFunctions: FunctionEntry[], indent: strin
 
   if (step.kind === "variableAction") {
     if (step.action === "set") {
-      return [`${indent}${step.targetName} := ${formatArgSourceForAssignment(step.value)}`];
+      return [`${indent}${step.targetName} := ${formatAssignedValue(step.value)}`];
     }
     if (step.action === "increment") {
       return [`${indent}${step.targetName} += ${step.amount}`];
@@ -548,10 +600,7 @@ function stepToAhkLines(step: Step, allFunctions: FunctionEntry[], indent: strin
         )}).Value`,
       ];
     }
-    const literal = formatAhkArgLiteral(
-      { key: step.targetName, label: step.targetName, type: step.varType },
-      step.initialValue
-    );
+    const literal = formatVariableInitialLiteral(step.varType, step.initialValue);
     return [`${indent}${step.targetName} := ${literal}`];
   }
 
@@ -738,6 +787,26 @@ export function serializeSteps(steps: Step[]): SerializedStep[] {
   return steps.map(serializeStep);
 }
 
+/** Shape of a builtin condition saved before its arguments could come from variables. */
+type LegacyBuiltinCondition = { kind: "builtin"; conditionId: string; params: ParamValues };
+
+function isLegacyBuiltinCondition(
+  condition: ConditionValue | LegacyBuiltinCondition
+): condition is LegacyBuiltinCondition {
+  return condition.kind === "builtin" && "params" in condition;
+}
+
+/** Upgrades a saved condition whose builtin arguments were plain literals into the ArgValues shape. */
+export function hydrateCondition(condition: ConditionValue | LegacyBuiltinCondition): ConditionValue {
+  if (!isLegacyBuiltinCondition(condition)) return condition;
+  const meta = BUILTIN_CONDITIONS.find((c) => c.id === condition.conditionId);
+  const args = meta ? defaultArgValues(meta.params) : {};
+  for (const [key, value] of Object.entries(condition.params ?? {})) {
+    args[key] = { kind: "literal", value };
+  }
+  return { kind: "builtin", conditionId: condition.conditionId, args };
+}
+
 export function hydrateSteps(
   serialized: (SerializedStep | LegacyKeyStep | LegacyCloseMenuStep | LegacyShowGuiStep)[],
   nextIdRef: { current: number }
@@ -773,7 +842,7 @@ export function hydrateSteps(
         id: nextIdRef.current++,
         kind: "flowControl",
         flowType: s.flowType,
-        condition: s.condition,
+        condition: hydrateCondition(s.condition),
         body: hydrateSteps(s.body ?? [], nextIdRef),
         ...(s.elseBody ? { elseBody: hydrateSteps(s.elseBody, nextIdRef) } : {}),
       });
@@ -831,6 +900,18 @@ export function headerParamIdentifiers(p: HeaderParamDef): string[] {
   return p.type === "coordinate" ? [`${p.key}X`, `${p.key}Y`] : [p.key];
 }
 
+/** Same as `clearArgsReferencing`, for a "definir variavel" value (which may be an X/Y pair). */
+function clearAssignedValueReferencing(identifiers: string[], value: AssignedValue): AssignedValue {
+  const clearOne = (source: ArgSource): ArgSource =>
+    source.kind === "headerParam" && identifiers.includes(source.paramKey)
+      ? { kind: "literal", value: "" }
+      : source;
+  if (value.kind !== "coordinate") return clearOne(value);
+  const x = clearOne(value.x);
+  const y = clearOne(value.y);
+  return x === value.x && y === value.y ? value : { kind: "coordinate", x, y };
+}
+
 function clearArgsReferencing(identifiers: string[], args: ArgValues, params: ParamDef[]): ArgValues {
   let changed = false;
   const next = { ...args };
@@ -853,15 +934,11 @@ export function clearHeaderParamRefs(
   let changed = false;
   const next = steps.map((step) => {
     if (step.kind === "variableAction") {
-      if (
-        step.action === "set" &&
-        step.value.kind === "headerParam" &&
-        identifiers.includes(step.value.paramKey)
-      ) {
-        changed = true;
-        return { ...step, value: { kind: "literal" as const, value: "" } };
-      }
-      return step;
+      if (step.action !== "set") return step;
+      const value = clearAssignedValueReferencing(identifiers, step.value);
+      if (value === step.value) return step;
+      changed = true;
+      return { ...step, value };
     }
     if (step.kind === "flowControl") {
       let stepChanged = false;
@@ -873,6 +950,14 @@ export function clearHeaderParamRefs(
       ) {
         condition = { ...condition, value: { kind: "literal", value: "" } };
         stepChanged = true;
+      } else if (condition.kind === "builtin") {
+        const builtin = condition;
+        const meta = BUILTIN_CONDITIONS.find((c) => c.id === builtin.conditionId);
+        const args = clearArgsReferencing(identifiers, builtin.args, meta?.params ?? []);
+        if (args !== builtin.args) {
+          condition = { ...builtin, args };
+          stepChanged = true;
+        }
       }
       const body = clearHeaderParamRefs(step.body, identifiers, functions);
       const elseBody = step.elseBody

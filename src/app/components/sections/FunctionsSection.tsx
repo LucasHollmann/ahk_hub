@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { FunctionEntry, GlobalVariable } from "../types";
+import type { FunctionEntry, GlobalVariable, VariableType } from "../types";
 import StepListEditor from "./StepListEditor";
 import { extractFunctionName, isValidAhkIdentifier } from "../../functions/ahk";
 import type { HeaderParamDef, HeaderParamType, ParamOption } from "../../functions/types";
@@ -24,6 +24,8 @@ type Props = {
   onAdd: (entry: Omit<FunctionEntry, "id">) => void;
   onUpdate: (id: number, entry: Omit<FunctionEntry, "id">) => void;
   onRemove: (id: number) => void;
+  /** Receives the whole list in its new order — this is also the order the functions are declared in the generated script. */
+  onReorder: (functions: FunctionEntry[]) => void;
   globalVariables: GlobalVariable[];
   onRegisterGlobalVariable: (variable: Omit<GlobalVariable, "id">) => void;
 };
@@ -50,6 +52,7 @@ export default function FunctionsSection({
   onAdd,
   onUpdate,
   onRemove,
+  onReorder,
   globalVariables,
   onRegisterGlobalVariable,
 }: Props) {
@@ -68,10 +71,16 @@ export default function FunctionsSection({
   const [newOptionValue, setNewOptionValue] = useState("");
 
   const [steps, setSteps] = useState<Step[]>([]);
+  const [draggedFunctionId, setDraggedFunctionId] = useState<number | null>(null);
   const nextStepIdRef = useRef(0);
 
   const detectedName = extractFunctionName(code);
   const trimmedName = name.trim();
+  /** The name this function will be saved under, whichever mode the form is in. */
+  const effectiveName = mode === "code" ? (detectedName ?? "") : trimmedName;
+  /** A name already taken by another function makes the script invalid — AHK would see two definitions. */
+  const isDuplicateName =
+    effectiveName !== "" && functions.some((f) => f.name === effectiveName && f.id !== editingId);
   const trimmedParamName = newParamName.trim();
   const availableStepFunctions = functions.filter((f) => f.id !== editingId);
 
@@ -83,11 +92,13 @@ export default function FunctionsSection({
       ...collectAllGuiVariablesAcrossFunctions(availableStepFunctions),
     ].filter((v) => (seen.has(v.key) ? false : (seen.add(v.key), true)));
   })();
-  const globalVariableParams: HeaderParamDef[] = globalVariables.map((v) => ({
-    key: v.name,
-    label: v.name,
-    type: v.type,
-  }));
+  const globalVariableParams: HeaderParamDef[] = globalVariables
+    .filter((v): v is GlobalVariable & { type: Exclude<VariableType, "array"> } => v.type !== "array")
+    .map((v) => ({
+      key: v.name,
+      label: v.name,
+      type: v.type,
+    }));
 
   function paramTypeLabel(type: HeaderParamType): string {
     return type === "text"
@@ -101,6 +112,17 @@ export default function FunctionsSection({
             : type === "keyCombo"
               ? t("functionsSection.paramTypeKeyCombo", "Tecla")
               : t("functionsSection.paramTypeCoordinate", "Coordenada na tela");
+  }
+
+  function reorderFunctions(draggedId: number, targetId: number) {
+    if (draggedId === targetId) return;
+    const dragIndex = functions.findIndex((f) => f.id === draggedId);
+    const dropIndex = functions.findIndex((f) => f.id === targetId);
+    if (dragIndex === -1 || dropIndex === -1) return;
+    const next = [...functions];
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(dropIndex, 0, moved);
+    onReorder(next);
   }
 
   function addNewParamOption() {
@@ -123,11 +145,13 @@ export default function FunctionsSection({
   }
 
   const canSubmit =
-    mode === "code"
-      ? Boolean(detectedName) && code.trim().length > 0
-      : mode === "steps"
-        ? isValidAhkIdentifier(trimmedName) && steps.length > 0
-        : false;
+    isDuplicateName
+      ? false
+      : mode === "code"
+        ? Boolean(detectedName) && code.trim().length > 0
+        : mode === "steps"
+          ? isValidAhkIdentifier(trimmedName) && steps.length > 0
+          : false;
 
   function resetForm() {
     setEditingId(null);
@@ -349,6 +373,15 @@ export default function FunctionsSection({
                           "Escreva o cabeçalho da função (ex: NomeDaFuncao() { ... }) para que o nome seja detectado."
                         )}
                   </span>
+                  {isDuplicateName && (
+                    <span className="text-xs text-red-400">
+                      {t(
+                        "functionsSection.duplicateName",
+                        'Já existe uma função chamada "{{name}}".',
+                        { name: effectiveName }
+                      )}
+                    </span>
+                  )}
                 </div>
               </>
             ) : (
@@ -388,6 +421,15 @@ export default function FunctionsSection({
                           />
                         </div>
                       </div>
+                      {isDuplicateName && (
+                        <span className="text-xs text-red-400">
+                          {t(
+                            "functionsSection.duplicateName",
+                            'Já existe uma função chamada "{{name}}".',
+                            { name: effectiveName }
+                          )}
+                        </span>
+                      )}
                       {name.trim() !== "" && !isValidAhkIdentifier(trimmedName) && (
                         <span className="text-xs text-red-400">
                           {t(
@@ -567,11 +609,37 @@ export default function FunctionsSection({
             {t("functionsSection.emptyCustomList", "Nenhuma função personalizada cadastrada.")}
           </p>
         )}
+        {functions.length > 1 && (
+          <p className="opacity-60 text-xs">
+            {t(
+              "functionsSection.reorderHint",
+              "Arraste para reordenar — é nessa ordem que as funções são declaradas no script."
+            )}
+          </p>
+        )}
         {functions.map((f) => (
-          <div key={f.id} className="flex items-center justify-between bg-menu-secondary rounded-lg px-4 py-2">
-            <div className="flex flex-col">
-              <span className="font-semibold">{f.name}</span>
-              {f.description && <span className="text-sm opacity-70">{f.description}</span>}
+          <div
+            key={f.id}
+            draggable
+            onDragStart={() => setDraggedFunctionId(f.id)}
+            onDragEnd={() => setDraggedFunctionId(null)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => {
+              if (draggedFunctionId !== null) reorderFunctions(draggedFunctionId, f.id);
+              setDraggedFunctionId(null);
+            }}
+            className={`flex items-center justify-between bg-menu-secondary rounded-lg px-4 py-2 cursor-grab active:cursor-grabbing ${
+              draggedFunctionId === f.id ? "opacity-40" : ""
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="opacity-40 select-none" aria-hidden="true">
+                ⠿
+              </span>
+              <div className="flex flex-col min-w-0">
+                <span className="font-semibold truncate">{f.name}</span>
+                {f.description && <span className="text-sm opacity-70 truncate">{f.description}</span>}
+              </div>
             </div>
             <div className="flex gap-2">
               <button className="button-secondary py-1 px-3 text-sm" onClick={() => startEdit(f)}>

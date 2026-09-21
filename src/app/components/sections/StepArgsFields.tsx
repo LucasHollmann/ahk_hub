@@ -5,6 +5,7 @@ import {
   compatibleHeaderParams,
   getCoordinatePairs,
   tCoordinateLabel,
+  type CoordinatePair,
   tParamLabel,
   tParamOption,
   type ArgSource,
@@ -14,8 +15,10 @@ import {
   type ParamValues,
 } from "../../functions/types";
 import { useTranslation } from "../../i18n/I18nContext";
+import ArgSourceValue from "./ArgSourceValue";
+import CursorCaptureButton from "./CursorCapture";
 import KeyComboPicker from "./KeyComboPicker";
-import { CoordinateField } from "./ParamsFields";
+import { CoordinateField, captureTargetForParam, capturedValue } from "./ParamsFields";
 
 function literalDefault(param: ParamDef): string | number | boolean {
   return param.type === "boolean" ? false : "";
@@ -83,6 +86,61 @@ export default function StepArgsFields({
     else if (prefix === "global") onChange(param.key, { kind: "globalVariable", variableName: name });
   }
 
+  /** Identifies a coordinate source in the pair picker: which list it came from, plus its name. */
+  function coordinateOptionValue(kind: "header" | "local" | "global", key: string): string {
+    return `${kind}:${key}`;
+  }
+
+  /**
+   * Which coordinate source, if any, currently fills both halves of a pair: a "coordinate"
+   * header param (whose X/Y arrive as two separate `keyX`/`keyY` values) or a coordinate
+   * variable (a single `{x, y}` object, read as `name.x` / `name.y`).
+   */
+  function coordinateSelection(pair: CoordinatePair): string {
+    const xArg = values[pair.xKey];
+    const yArg = values[pair.yKey];
+    if (!xArg || !yArg) return "";
+
+    if (xArg.kind === "headerParam" && yArg.kind === "headerParam") {
+      const match = compatibleCoordinateHeaderParams(headerParams).find(
+        (hp) => xArg.paramKey === `${hp.key}X` && yArg.paramKey === `${hp.key}Y`
+      );
+      return match ? coordinateOptionValue("header", match.key) : "";
+    }
+
+    if (
+      xArg.kind === yArg.kind &&
+      (xArg.kind === "localVariable" || xArg.kind === "globalVariable") &&
+      yArg.kind !== "literal" &&
+      yArg.kind !== "headerParam" &&
+      xArg.variableName === yArg.variableName &&
+      xArg.component === "x" &&
+      yArg.component === "y"
+    ) {
+      return coordinateOptionValue(xArg.kind === "localVariable" ? "local" : "global", xArg.variableName);
+    }
+
+    return "";
+  }
+
+  function applyCoordinateSelection(pair: CoordinatePair, rawValue: string) {
+    if (!rawValue) {
+      setLiteral(pair.xKey, 0);
+      setLiteral(pair.yKey, 0);
+      return;
+    }
+    const prefix = rawValue.slice(0, rawValue.indexOf(":"));
+    const name = rawValue.slice(rawValue.indexOf(":") + 1);
+    if (prefix === "header") {
+      onChange(pair.xKey, { kind: "headerParam", paramKey: `${name}X` });
+      onChange(pair.yKey, { kind: "headerParam", paramKey: `${name}Y` });
+      return;
+    }
+    const kind = prefix === "local" ? ("localVariable" as const) : ("globalVariable" as const);
+    onChange(pair.xKey, { kind, variableName: name, component: "x" });
+    onChange(pair.yKey, { kind, variableName: name, component: "y" });
+  }
+
   function sourceUsingLabel(arg: ArgSource): { key: string; fallback: string; name: string } | null {
     if (arg.kind === "headerParam") {
       return {
@@ -113,57 +171,71 @@ export default function StepArgsFields({
       <span className="text-xs font-semibold opacity-70">{title}</span>
 
       {coordinatePairs.map((pair) => {
-        const coordCandidates = compatibleCoordinateHeaderParams(headerParams);
-        const xArg = values[pair.xKey];
-        const yArg = values[pair.yKey];
-        const sourcedFrom =
-          xArg?.kind === "headerParam" && yArg?.kind === "headerParam"
-            ? coordCandidates.find(
-                (hp) => xArg.paramKey === `${hp.key}X` && yArg.paramKey === `${hp.key}Y`
-              )
-            : undefined;
+        const headerCandidates = compatibleCoordinateHeaderParams(headerParams);
+        const localCandidates = compatibleCoordinateHeaderParams(localVariables);
+        const globalCandidates = compatibleCoordinateHeaderParams(globalVariables);
+        const hasCandidates =
+          headerCandidates.length > 0 || localCandidates.length > 0 || globalCandidates.length > 0;
+        const selection = coordinateSelection(pair);
+        const label = tCoordinateLabel(t, targetId ?? "customFunction", pair);
 
         return (
           <div key={pair.xKey} className="flex flex-col gap-1">
-            {coordCandidates.length > 0 && (
+            {hasCandidates && (
               <div className="flex justify-end">
                 <select
                   className="bg-menu-secondary rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none"
-                  value={sourcedFrom?.key ?? ""}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      onChange(pair.xKey, { kind: "headerParam", paramKey: `${e.target.value}X` });
-                      onChange(pair.yKey, { kind: "headerParam", paramKey: `${e.target.value}Y` });
-                    } else {
-                      setLiteral(pair.xKey, 0);
-                      setLiteral(pair.yKey, 0);
-                    }
-                  }}
+                  value={selection}
+                  onChange={(e) => applyCoordinateSelection(pair, e.target.value)}
                 >
                   <option value="">{t("stepArgsFields.fixedValue", "Valor fixo")}</option>
-                  {coordCandidates.map((hp) => (
-                    <option key={hp.key} value={hp.key}>
-                      {t("stepArgsFields.fromHeaderParam", "Do parâmetro: {{name}}", {
-                        name: hp.label,
-                      })}
-                    </option>
-                  ))}
+                  {headerCandidates.length > 0 && (
+                    <optgroup label={t("stepArgsFields.groupHeaderParams", "Parâmetros do cabeçalho")}>
+                      {headerCandidates.map((hp) => (
+                        <option key={`header:${hp.key}`} value={coordinateOptionValue("header", hp.key)}>
+                          {hp.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {localCandidates.length > 0 && (
+                    <optgroup label={t("stepArgsFields.groupLocalVariables", "Variáveis locais")}>
+                      {localCandidates.map((v) => (
+                        <option key={`local:${v.key}`} value={coordinateOptionValue("local", v.key)}>
+                          {v.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {globalCandidates.length > 0 && (
+                    <optgroup label={t("stepArgsFields.groupGlobalVariables", "Variáveis globais")}>
+                      {globalCandidates.map((v) => (
+                        <option key={`global:${v.key}`} value={coordinateOptionValue("global", v.key)}>
+                          {v.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
             )}
 
-            {sourcedFrom ? (
+            {selection ? (
               <div className="flex flex-col gap-1">
-                <label className="text-xs opacity-70">
-                  {tCoordinateLabel(t, targetId ?? "customFunction", pair)}
-                </label>
-                <div className="bg-menu-secondary rounded-lg px-3 py-2 text-sm opacity-70 italic">
-                  {t(
-                    "stepArgsFields.usingHeaderParam",
-                    'Usando o parâmetro "{{name}}" do cabeçalho',
-                    { name: sourcedFrom.label }
-                  )}
-                </div>
+                <label className="text-xs opacity-70">{label}</label>
+                {[pair.xKey, pair.yKey].map((key) => {
+                  const arg = values[key];
+                  const using = arg ? sourceUsingLabel(arg) : null;
+                  if (!arg || !using) return null;
+                  return (
+                    <ArgSourceValue
+                      key={key}
+                      arg={arg}
+                      label={t(using.key, using.fallback, { name: using.name })}
+                      onChange={(next) => onChange(key, next)}
+                    />
+                  );
+                })}
               </div>
             ) : (
               <CoordinateField
@@ -236,9 +308,12 @@ export default function StepArgsFields({
             </div>
 
             {using ? (
-              <div className="bg-menu-secondary rounded-lg px-3 py-2 text-sm opacity-70 italic">
-                {t(using.key, using.fallback, { name: using.name })}
-              </div>
+              <ArgSourceValue
+                arg={arg}
+                label={t(using.key, using.fallback, { name: using.name })}
+                onChange={(next) => onChange(param.key, next)}
+                allowModifier={param.type === "number"}
+              />
             ) : param.type === "boolean" ? (
               <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                 <span className="relative flex items-center justify-center">
@@ -283,14 +358,28 @@ export default function StepArgsFields({
                 onChange={(combo) => setLiteral(param.key, combo)}
               />
             ) : (
-              <input
-                type={param.type === "number" ? "number" : "text"}
-                className="bg-menu-secondary rounded-lg px-3 py-2 outline-none h-10 w-full"
-                value={String(literalValue ?? "")}
-                onChange={(e) =>
-                  setLiteral(param.key, param.type === "number" ? Number(e.target.value) : e.target.value)
-                }
-              />
+              <>
+                <input
+                  type={param.type === "number" ? "number" : "text"}
+                  className="bg-menu-secondary rounded-lg px-3 py-2 outline-none h-10 w-full"
+                  value={String(literalValue ?? "")}
+                  onChange={(e) =>
+                    setLiteral(param.key, param.type === "number" ? Number(e.target.value) : e.target.value)
+                  }
+                />
+                {(() => {
+                  const target = captureTargetForParam(param);
+                  return target ? (
+                    <CursorCaptureButton
+                      capture={target}
+                      onCaptured={(result) => {
+                        const value = capturedValue(target, result);
+                        if (value) setLiteral(param.key, value);
+                      }}
+                    />
+                  ) : null;
+                })()}
+              </>
             )}
           </div>
         );
