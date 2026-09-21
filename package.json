@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "eslint",
     "electron": "electron .",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "icon": "node scripts/make-icon.mjs"
   },
   "dependencies": {
     "get-windows": "^9.3.0",
@@ -45,6 +46,9 @@
     ],
     "directories": {
       "output": "release"
+    },
+    "win": {
+      "icon": "electron/icon.ico"
     }
   }
 }

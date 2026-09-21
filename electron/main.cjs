@@ -477,6 +477,9 @@ function createWindow() {
     minWidth: 960,
     minHeight: 640,
     backgroundColor: "#101416",
+    // Only used while running unpackaged; a packaged build takes its icon from the exe,
+    // which electron-builder stamps from the same file (see "build.win.icon").
+    icon: path.join(__dirname, "icon.ico"),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
