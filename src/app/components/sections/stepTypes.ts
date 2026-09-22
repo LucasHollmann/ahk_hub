@@ -7,6 +7,7 @@ import type {
   GuiInitialState,
   SerializedGuiControl,
   SerializedMenuItemTarget,
+  SerializedRadialOption,
   SerializedStep,
   VariableAction,
   VariableInitialValue,
@@ -14,6 +15,17 @@ import type {
 } from "../types";
 import { BUILTIN_FUNCTIONS } from "../../functions/builtins";
 import { BUILTIN_CONDITIONS } from "../../functions/conditions";
+import {
+  DEFAULT_RADIAL_BACK_COLOR,
+  DEFAULT_RADIAL_MIN_DISTANCE,
+  DEFAULT_RADIAL_OPACITY,
+  DEFAULT_RADIAL_RADIUS,
+  DEFAULT_RADIAL_TEXT_COLOR,
+  RADIAL_CLOSE_FN,
+  RADIAL_DIRECTIONS,
+  RADIAL_OPEN_FN,
+  type RadialDirection,
+} from "../../functions/radialSelector";
 import {
   argSourceExpression,
   argSourceIdentifier,
@@ -46,6 +58,12 @@ export type MenuItemTarget =
   | { kind: "builtin"; meta: FunctionMeta; args: ArgValues };
 
 export type MenuItem = { id: number; label: string; target: MenuItemTarget };
+
+/** One arm of a circular quick selector: what it calls, and the text the overlay shows for it. */
+export type RadialOption = { label: string; target: MenuItemTarget };
+
+/** The five arms of a selector, keyed by direction — a missing key means that direction does nothing. */
+export type RadialOptions = Partial<Record<RadialDirection, RadialOption>>;
 
 export type GuiControlType = "text" | "button" | "edit" | "checkbox" | "dropdown" | "code";
 
@@ -108,7 +126,24 @@ export type Step =
       opacity?: number;
       controls: GuiControl[];
     }
-  | { id: number; kind: "closeGui"; targetVar: string };
+  | { id: number; kind: "closeGui"; targetVar: string }
+  | {
+      id: number;
+      kind: "openRadialSelector";
+      varName: string;
+      name: string;
+      minDistance: number;
+      triggerOnMove: boolean;
+      keepOpenOnSelect: boolean;
+      showOverlay: boolean;
+      radius: number;
+      backColor?: string;
+      textColor?: string;
+      opacity?: number;
+      options: RadialOptions;
+      onClose?: MenuItemTarget;
+    }
+  | { id: number; kind: "closeRadialSelector"; targetVar: string };
 
 /** Legacy shape from before "send a key" became the KeyPress builtin — kept so old saved functions still load. */
 export type LegacyKeyStep = { kind: "key"; combo: string };
@@ -138,6 +173,19 @@ function isLegacyShowGuiStep(
 /** The global variable name a "Criar Gui" step generates for a given window title — normalized so it's a valid AHK identifier. */
 export function guiVarNameFromTitle(title: string): string {
   return `gui_${toAhkLabel(title)}`;
+}
+
+/** The global variable name an "Abrir seletor rápido circular" step stores its selector in — same convention as `guiVarNameFromTitle`. */
+export function radialVarNameFromName(name: string): string {
+  return `radial_${toAhkLabel(name)}`;
+}
+
+/** The options of a selector in a stable order, skipping the directions left unbound. */
+export function radialOptionEntries(options: RadialOptions): [RadialDirection, RadialOption][] {
+  return RADIAL_DIRECTIONS.flatMap((direction): [RadialDirection, RadialOption][] => {
+    const option = options[direction];
+    return option ? [[direction, option]] : [];
+  });
 }
 
 export function hasHeaderRef(args: ArgValues): boolean {
@@ -274,6 +322,17 @@ export function stepLabel(t: Translate, step: Step, functions: FunctionEntry[]):
   if (step.kind === "closeGui") {
     return t("functionsSection.closeGuiSummary", "Fechar Gui {{name}}", { name: step.targetVar });
   }
+  if (step.kind === "openRadialSelector") {
+    return t("functionsSection.openRadialSummary", 'Abrir seletor circular "{{name}}" ({{count}} opções)', {
+      name: step.name,
+      count: radialOptionEntries(step.options).length,
+    });
+  }
+  if (step.kind === "closeRadialSelector") {
+    return t("functionsSection.closeRadialSummary", "Fechar seletor circular {{name}}", {
+      name: step.targetVar,
+    });
+  }
   const summary = argSummary(step.meta.params, step.args);
   return summary ? `${tFunctionName(t, step.meta)}(${summary})` : `${tFunctionName(t, step.meta)}()`;
 }
@@ -322,6 +381,17 @@ function collectStepGlobalNames(step: Step, globalVariables: GlobalVariable[], a
       }
     }
   } else if (step.kind === "closeGui") {
+    acc.add(step.targetVar);
+  } else if (step.kind === "openRadialSelector") {
+    acc.add(step.varName);
+    const targets = radialOptionEntries(step.options).map(([, option]) => option.target);
+    if (step.onClose) targets.push(step.onClose);
+    for (const target of targets) {
+      for (const arg of Object.values(target.args)) {
+        if (arg.kind === "globalVariable") acc.add(arg.variableName);
+      }
+    }
+  } else if (step.kind === "closeRadialSelector") {
     acc.add(step.targetVar);
   } else {
     for (const arg of Object.values(step.args)) {
@@ -386,6 +456,42 @@ export function collectAllGuiVariablesAcrossFunctions(functions: FunctionEntry[]
   function walk(list: SerializedStep[]) {
     for (const step of list) {
       if (step.kind === "createGui") {
+        result.push({ key: step.varName, label: step.varName, type: "text" });
+      } else if (step.kind === "flowControl") {
+        walk(step.body);
+        if (step.elseBody) walk(step.elseBody);
+      }
+    }
+  }
+  for (const f of functions) {
+    if (f.builder?.mode === "steps") walk(f.builder.steps);
+  }
+  return result;
+}
+
+/** Every selector armed by an "Abrir seletor rápido circular" step anywhere in this function's step tree, for the "Fechar seletor" target picker. */
+export function collectAllRadialVariables(steps: Step[]): HeaderParamDef[] {
+  const result: HeaderParamDef[] = [];
+  function walk(list: Step[]) {
+    for (const step of list) {
+      if (step.kind === "openRadialSelector") {
+        result.push({ key: step.varName, label: step.varName, type: "text" });
+      } else if (step.kind === "flowControl") {
+        walk(step.body);
+        if (step.elseBody) walk(step.elseBody);
+      }
+    }
+  }
+  walk(steps);
+  return result;
+}
+
+/** Every selector armed across all other saved functions — since selector variables are global, one function can open a selector and another close it, which is how the feature is normally wired to a key press/release pair. */
+export function collectAllRadialVariablesAcrossFunctions(functions: FunctionEntry[]): HeaderParamDef[] {
+  const result: HeaderParamDef[] = [];
+  function walk(list: SerializedStep[]) {
+    for (const step of list) {
+      if (step.kind === "openRadialSelector") {
         result.push({ key: step.varName, label: step.varName, type: "text" });
       } else if (step.kind === "flowControl") {
         walk(step.body);
@@ -700,6 +806,54 @@ function stepToAhkLines(step: Step, allFunctions: FunctionEntry[], indent: strin
     return [`${indent}${step.targetVar}.Destroy()`];
   }
 
+  if (step.kind === "openRadialSelector") {
+    const entries = radialOptionEntries(step.options);
+    // Only the bound directions reach the overlay's label Map — the helper draws a label
+    // per key it finds there, so an unbound direction stays blank instead of showing an
+    // empty caption for something that does nothing. An invisible selector draws nothing
+    // at all, so it carries no labels either.
+    const labels = step.showOverlay
+      ? entries
+          .map(([direction, option]) => `${quoteAhkString(direction)}, ${quoteAhkString(option.label)}`)
+          .join(", ")
+      : "";
+    const args = [
+      // Passing the variable's current value in lets the helper dismiss a selector that a
+      // previous run left open, so a missing "fechar" step can't orphan an overlay or a watcher.
+      step.varName,
+      String(step.minDistance),
+      String(step.radius),
+      step.showOverlay ? "1" : "0",
+      quoteAhkString(`0x${step.backColor ?? DEFAULT_RADIAL_BACK_COLOR}`),
+      quoteAhkString(step.textColor ?? DEFAULT_RADIAL_TEXT_COLOR),
+      String(step.opacity ?? DEFAULT_RADIAL_OPACITY),
+      `Map(${labels})`,
+      step.triggerOnMove ? "1" : "0",
+      // Only means anything while the watcher is running, so it can't linger from an earlier edit.
+      step.triggerOnMove && step.keepOpenOnSelect ? "1" : "0",
+    ].join(", ");
+
+    const lines = [`${indent}${step.varName} := ${RADIAL_OPEN_FN}(${args})`];
+    for (const [direction, option] of entries) {
+      lines.push(
+        `${indent}${step.varName}.actions[${quoteAhkString(direction)}] := (*) => ${menuTargetCallExpr(
+          option.target,
+          allFunctions
+        )}`
+      );
+    }
+    if (step.onClose) {
+      lines.push(
+        `${indent}${step.varName}.onClose := (*) => ${menuTargetCallExpr(step.onClose, allFunctions)}`
+      );
+    }
+    return lines;
+  }
+
+  if (step.kind === "closeRadialSelector") {
+    return [`${indent}${RADIAL_CLOSE_FN}(${step.targetVar})`];
+  }
+
   return [`${indent}${builtinCallExpr(step.meta, step.args)}`];
 }
 
@@ -780,6 +934,30 @@ function serializeStep(step: Step): SerializedStep {
   if (step.kind === "closeGui") {
     return { kind: "closeGui", targetVar: step.targetVar };
   }
+  if (step.kind === "openRadialSelector") {
+    const options: Partial<Record<RadialDirection, SerializedRadialOption>> = {};
+    for (const [direction, option] of radialOptionEntries(step.options)) {
+      options[direction] = { label: option.label, target: serializeMenuItemTarget(option.target) };
+    }
+    return {
+      kind: "openRadialSelector",
+      varName: step.varName,
+      name: step.name,
+      minDistance: step.minDistance,
+      triggerOnMove: step.triggerOnMove,
+      keepOpenOnSelect: step.keepOpenOnSelect,
+      showOverlay: step.showOverlay,
+      radius: step.radius,
+      ...(step.backColor ? { backColor: step.backColor } : {}),
+      ...(step.textColor ? { textColor: step.textColor } : {}),
+      ...(step.opacity !== undefined ? { opacity: step.opacity } : {}),
+      options,
+      ...(step.onClose ? { onClose: serializeMenuItemTarget(step.onClose) } : {}),
+    };
+  }
+  if (step.kind === "closeRadialSelector") {
+    return { kind: "closeRadialSelector", targetVar: step.targetVar };
+  }
   return { kind: "builtin", functionId: step.meta.id, args: { ...step.args } };
 }
 
@@ -824,7 +1002,6 @@ export function hydrateSteps(
           meta,
           args: {
             combo: { kind: "literal", value: s.combo },
-            duration: { kind: "literal", value: 0 },
           },
         });
       }
@@ -880,6 +1057,36 @@ export function hydrateSteps(
       });
     } else if (s.kind === "closeGui") {
       hydrated.push({ id: nextIdRef.current++, kind: "closeGui", targetVar: s.targetVar });
+    } else if (s.kind === "openRadialSelector") {
+      const options: RadialOptions = {};
+      for (const direction of RADIAL_DIRECTIONS) {
+        const saved = s.options?.[direction];
+        if (!saved) continue;
+        // Same as a menu item: an option pointing at a builtin id that no longer exists is dropped.
+        const target = hydrateMenuItemTarget(saved.target);
+        if (target) options[direction] = { label: saved.label ?? "", target };
+      }
+      // Same as an option: a target pointing at a builtin id that no longer exists is dropped.
+      const onClose = s.onClose ? hydrateMenuItemTarget(s.onClose) : null;
+      hydrated.push({
+        id: nextIdRef.current++,
+        kind: "openRadialSelector",
+        varName: s.varName,
+        name: s.name,
+        minDistance: s.minDistance ?? DEFAULT_RADIAL_MIN_DISTANCE,
+        // Absent in selectors saved before this existed — they all waited for the closing step.
+        triggerOnMove: s.triggerOnMove ?? false,
+        keepOpenOnSelect: s.keepOpenOnSelect ?? false,
+        showOverlay: s.showOverlay ?? true,
+        radius: s.radius ?? DEFAULT_RADIAL_RADIUS,
+        ...(s.backColor ? { backColor: s.backColor } : {}),
+        ...(s.textColor ? { textColor: s.textColor } : {}),
+        ...(s.opacity !== undefined ? { opacity: s.opacity } : {}),
+        options,
+        ...(onClose ? { onClose } : {}),
+      });
+    } else if (s.kind === "closeRadialSelector") {
+      hydrated.push({ id: nextIdRef.current++, kind: "closeRadialSelector", targetVar: s.targetVar });
     } else {
       const meta = BUILTIN_FUNCTIONS.find((f) => f.id === s.functionId);
       if (meta) {
@@ -1003,7 +1210,29 @@ export function clearHeaderParamRefs(
       changed = true;
       return { ...step, controls };
     }
-    if (step.kind === "closeGui") return step;
+    if (step.kind === "openRadialSelector") {
+      let stepChanged = false;
+      const clearTarget = (target: MenuItemTarget): MenuItemTarget => {
+        const targetParams =
+          target.kind === "builtin"
+            ? target.meta.params
+            : expandHeaderParamsToCallParams(functions.find((f) => f.name === target.functionName)?.params ?? []);
+        const args = clearArgsReferencing(identifiers, target.args, targetParams);
+        if (args === target.args) return target;
+        stepChanged = true;
+        return { ...target, args };
+      };
+      const options: RadialOptions = { ...step.options };
+      for (const [direction, option] of radialOptionEntries(step.options)) {
+        const target = clearTarget(option.target);
+        if (target !== option.target) options[direction] = { ...option, target };
+      }
+      const onClose = step.onClose ? clearTarget(step.onClose) : step.onClose;
+      if (!stepChanged) return step;
+      changed = true;
+      return { ...step, options, ...(onClose ? { onClose } : {}) };
+    }
+    if (step.kind === "closeGui" || step.kind === "closeRadialSelector") return step;
     const targetParams =
       step.kind === "builtin"
         ? step.meta.params

@@ -1,5 +1,9 @@
 import type { FunctionEntry, GlobalVariable, Remapping } from "../components/types";
-import { collectAllGuiVariablesAcrossFunctions } from "../components/sections/stepTypes";
+import {
+  collectAllGuiVariablesAcrossFunctions,
+  collectAllRadialVariablesAcrossFunctions,
+} from "../components/sections/stepTypes";
+import { radialSelectorDeclarations } from "./radialSelector";
 import { expandHeaderParamsToCallParams, type FunctionMeta } from "./types";
 import { BUILTIN_FUNCTIONS } from "./builtins";
 import { BUILTIN_CONDITIONS } from "./conditions";
@@ -106,8 +110,30 @@ export function generateAhkScript(
     lines.push("");
   }
 
-  if (usedBuiltins.size > 0 || usedCustomFunctions.size > 0) {
+  const radialVariableNames = [
+    ...new Set(collectAllRadialVariablesAcrossFunctions(functions).map((v) => v.key)),
+  ];
+  if (radialVariableNames.length > 0) {
+    lines.push(
+      "; ==== Variáveis globais de seletor circular (pré-declaradas para poderem ser fechadas por outra função) ====",
+      ""
+    );
+    for (const name of radialVariableNames) {
+      lines.push(`${name} := ""`);
+    }
+    lines.push("");
+  }
+
+  if (usedBuiltins.size > 0 || usedCustomFunctions.size > 0 || radialVariableNames.length > 0) {
     lines.push("; ==== Declaração das funções ====", "");
+
+    // Not a builtin, so it isn't reached by the usage walk above: the helpers are emitted
+    // whenever any function's steps arm a selector at all.
+    if (radialVariableNames.length > 0) {
+      for (const declaration of radialSelectorDeclarations()) {
+        lines.push(declaration, "");
+      }
+    }
 
     for (const meta of usedBuiltins.values()) {
       lines.push(meta.toAhkDeclaration!());

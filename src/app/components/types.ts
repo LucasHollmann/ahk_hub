@@ -5,6 +5,7 @@ import type {
   HeaderParamDef,
   ParamValues,
 } from "../functions/types";
+import type { RadialDirection } from "../functions/radialSelector";
 
 export type VariableType = "text" | "number" | "boolean" | "array" | "coordinate";
 export type VariableScope = "local" | "global";
@@ -114,7 +115,36 @@ export type SerializedStep =
       controls: SerializedGuiControl[];
     }
   /** Closes a Gui previously created by a "createGui" step. */
-  | { kind: "closeGui"; targetVar: string };
+  | { kind: "closeGui"; targetVar: string }
+  /** Arms a circular quick selector as a global variable: records the cursor position and shows the overlay. */
+  | {
+      kind: "openRadialSelector";
+      varName: string;
+      name: string;
+      /** Displacement (px) the cursor must cover on at least one axis for a direction to win over the central option. */
+      minDistance: number;
+      /** Fires the matching option the instant the cursor crosses `minDistance`, instead of waiting for the closing step. */
+      triggerOnMove: boolean;
+      /** With `triggerOnMove`, leaves the selector up after a pick so options can be fired repeatedly; each new pick needs the cursor back in the central dead zone first. Meaningless on its own. */
+      keepOpenOnSelect: boolean;
+      showOverlay: boolean;
+      radius: number;
+      /** Overlay background as a 6-digit hex string (no "#"/"0x" prefix), if customized. */
+      backColor?: string;
+      /** Overlay label color as a 6-digit hex string (no "#"/"0x" prefix), if customized. */
+      textColor?: string;
+      /** 0 (invisible) to 255 (opaque), if customized. */
+      opacity?: number;
+      /** A direction left out here does nothing when picked. */
+      options: Partial<Record<RadialDirection, SerializedRadialOption>>;
+      /** Optional call the closing step makes after the picked option, whether that option ran at close or earlier on move. */
+      onClose?: SerializedMenuItemTarget;
+    }
+  /** Closes a selector opened by an "openRadialSelector" step and runs the option the cursor drifted toward. */
+  | { kind: "closeRadialSelector"; targetVar: string };
+
+/** One arm of a circular quick selector: what it calls, and the text the overlay shows for it. */
+export type SerializedRadialOption = { label: string; target: SerializedMenuItemTarget };
 
 /** How a Gui window is shown right after being created. */
 export type GuiInitialState = "normal" | "maximized" | "minimized";

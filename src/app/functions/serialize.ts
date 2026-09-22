@@ -140,7 +140,7 @@ export function parseAhkScript(content: string): ParseResult {
         destination: {
           kind: "builtin",
           meta,
-          params: { combo: destination.combo, duration: 0 },
+          params: { combo: destination.combo },
         },
         trigger,
       });

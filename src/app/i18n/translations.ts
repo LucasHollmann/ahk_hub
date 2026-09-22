@@ -166,7 +166,6 @@ export const en: Record<string, string> = {
   "functionsSection.recordClickFullScreen": "Consider clicks relative to the whole screen (otherwise, to the clicked window)",
   "functionsSection.recordInsertWaits": "Insert waits between steps (real time between actions)",
   "functionsSection.recordConvertDrag": "Convert held clicks into a drag",
-  "functionsSection.recordTimeKeys": "Time held keys (real time held)",
   "functionsSection.recordingEmpty": "No commands recorded yet — use the mouse/keyboard outside the app.",
   "functionsSection.discardRecording": "Discard",
   "functionsSection.addRecordedSteps": "Add steps",
@@ -255,6 +254,53 @@ export const en: Record<string, string> = {
   "functionsSection.closeGuiTargetLabel": "Gui to close",
   "functionsSection.closeGuiSelectPlaceholder": "Select a Gui",
   "functionsSection.closeGuiNoneAvailable": 'No Gui available — create a "Create Gui" step first.',
+
+  // circular quick selector steps
+  "functionsSection.openRadialLabel": "Open circular quick selector",
+  "functionsSection.openRadialDescription":
+    "Marks the mouse position and shows a circle with up to 5 options; the one picked is whichever direction the mouse is moved toward before the selector is closed.",
+  "functionsSection.openRadialSummary": 'Open circular selector "{{name}}" ({{count}} options)',
+  "functionsSection.openRadialNameLabel": "Selector name",
+  "functionsSection.openRadialNamePlaceholder": "e.g. Quick actions",
+  "functionsSection.openRadialMinDistanceLabel": "Minimum displacement (px)",
+  "functionsSection.openRadialMinDistanceHint":
+    "If the mouse doesn't travel more than this on either axis, the central option runs.",
+  "functionsSection.openRadialTriggerOnMove": "Run as soon as the mouse moves (without waiting for the close)",
+  "functionsSection.openRadialTriggerOnMoveHint":
+    "The direction's option fires the instant the mouse passes the minimum. The central option still depends on the closing step — that's the only point where you can tell the mouse never passed the minimum.",
+  "functionsSection.openRadialKeepOpen": "Don't close when an option is picked (pick several in a row)",
+  "functionsSection.openRadialKeepOpenHint":
+    "The selector stays up until the closing step. Just move to another direction to pick again; holding still in the same direction won't repeat that option. Coming back to the center also re-arms the last one.",
+  "functionsSection.openRadialKeepOpenOffHint": "The selector dismisses itself as soon as an option is picked.",
+  "functionsSection.openRadialShowOverlay": "Show the interface (circle with the options on screen)",
+  "functionsSection.openRadialHiddenHint":
+    "Invisible selector: nothing shows up on screen, only the mouse gesture decides the option.",
+  "functionsSection.openRadialRadiusLabel": "Circle radius (px)",
+  "functionsSection.openRadialBackColorLabel": "Background color",
+  "functionsSection.openRadialTextColorLabel": "Text color",
+  "functionsSection.openRadialOpacityLabel": "Opacity",
+  "functionsSection.openRadialOptionsLabel": "Options by direction",
+  "functionsSection.openRadialUnbound": "nothing",
+  "functionsSection.openRadialBind": "Set",
+  "functionsSection.openRadialOptionTitle": "Option: {{direction}}",
+  "functionsSection.openRadialOptionLabelLabel": "Text shown in the circle",
+  "functionsSection.openRadialOnCloseLabel": "On closing the selector (optional)",
+  "functionsSection.openRadialOnCloseTitle": "Function to run when the selector closes",
+  "functionsSection.openRadialOnCloseHint":
+    "Runs on the closing step, always after the picked option — including when that option had already fired on move.",
+  "functionsSection.radialDirection.up": "Up",
+  "functionsSection.radialDirection.down": "Down",
+  "functionsSection.radialDirection.left": "Left",
+  "functionsSection.radialDirection.right": "Right",
+  "functionsSection.radialDirection.center": "Center (displacement below the minimum)",
+  "functionsSection.closeRadialLabel": "Close circular quick selector",
+  "functionsSection.closeRadialDescription":
+    "Closes a selector opened earlier and runs the option matching the mouse displacement.",
+  "functionsSection.closeRadialSummary": "Close circular selector {{name}}",
+  "functionsSection.closeRadialTargetLabel": "Selector to close",
+  "functionsSection.closeRadialSelectPlaceholder": "Select a selector",
+  "functionsSection.closeRadialNoneAvailable":
+    'No selector available — create an "Open circular quick selector" step first.',
   "functionsSection.conditionKindLabel": "Condition type",
   "functionsSection.conditionKindVariable": "Compare a variable",
   "functionsSection.conditionKindCode": "Raw code",
@@ -324,9 +370,13 @@ export const en: Record<string, string> = {
 
   // functions.keyPress
   "functions.keyPress.name": "KeyPress",
-  "functions.keyPress.description": "Sends a key combination (modifier + key).",
+  "functions.keyPress.description":
+    "Sends a key combination (modifier + key). It can also just press or just release, to hold a key down between two steps.",
   "functions.keyPress.params.combo.label": "Key",
-  "functions.keyPress.params.duration.label": "Hold duration (ms, optional — leave empty for a normal tap)",
+  "functions.keyPress.params.action.label": "Action",
+  "functions.keyPress.params.action.options.press": "Tap (press and release)",
+  "functions.keyPress.params.action.options.down": "Hold (press only)",
+  "functions.keyPress.params.action.options.up": "Release (let go only)",
 
   // functions.write
   "functions.write.name": "Write",

@@ -12,6 +12,8 @@ import {
   collectAllGuiVariables,
   collectAllGuiVariablesAcrossFunctions,
   collectAllLocalVariableCreations,
+  collectAllRadialVariables,
+  collectAllRadialVariablesAcrossFunctions,
   collectGlobalVariableCreations,
   headerParamIdentifiers,
   hydrateSteps,
@@ -90,6 +92,13 @@ export default function FunctionsSection({
     return [
       ...collectAllGuiVariables(steps),
       ...collectAllGuiVariablesAcrossFunctions(availableStepFunctions),
+    ].filter((v) => (seen.has(v.key) ? false : (seen.add(v.key), true)));
+  })();
+  const radialVariables: HeaderParamDef[] = (() => {
+    const seen = new Set<string>();
+    return [
+      ...collectAllRadialVariables(steps),
+      ...collectAllRadialVariablesAcrossFunctions(availableStepFunctions),
     ].filter((v) => (seen.has(v.key) ? false : (seen.add(v.key), true)));
   })();
   const globalVariableParams: HeaderParamDef[] = globalVariables
@@ -580,6 +589,7 @@ export default function FunctionsSection({
                       localVariables={localVariables}
                       globalVariables={globalVariableParams}
                       guiVariables={guiVariables}
+                      radialVariables={radialVariables}
                       nextStepIdRef={nextStepIdRef}
                     />
                   </SectionCard>

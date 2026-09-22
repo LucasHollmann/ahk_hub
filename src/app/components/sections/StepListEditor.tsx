@@ -42,14 +42,25 @@ import { useTranslation } from "../../i18n/I18nContext";
 import {
   guiVarNameFromTitle,
   isConditionReady,
+  radialVarNameFromName,
   stepLabel,
   type GuiControl,
   type GuiControlType,
   type MenuItem,
   type MenuItemTarget,
+  type RadialOptions,
   type Step,
   type StepVarActionKind,
 } from "./stepTypes";
+import {
+  DEFAULT_RADIAL_BACK_COLOR,
+  DEFAULT_RADIAL_MIN_DISTANCE,
+  DEFAULT_RADIAL_OPACITY,
+  DEFAULT_RADIAL_RADIUS,
+  DEFAULT_RADIAL_TEXT_COLOR,
+  RADIAL_DIRECTIONS,
+  type RadialDirection,
+} from "../../functions/radialSelector";
 
 type Props = {
   steps: Step[];
@@ -59,9 +70,22 @@ type Props = {
   localVariables: HeaderParamDef[];
   globalVariables: HeaderParamDef[];
   guiVariables: HeaderParamDef[];
+  radialVariables: HeaderParamDef[];
   nextStepIdRef: { current: number };
   depth?: number;
 };
+
+const RADIAL_DIRECTION_LABELS: Record<RadialDirection, string> = {
+  up: "Cima",
+  down: "Baixo",
+  left: "Esquerda",
+  right: "Direita",
+  center: "Centro (deslocamento abaixo do mínimo)",
+};
+
+function radialDirectionLabel(t: Translate, direction: RadialDirection): string {
+  return t(`functionsSection.radialDirection.${direction}`, RADIAL_DIRECTION_LABELS[direction]);
+}
 
 /** A held click longer than this, or one that moved more than this many px, is recorded as a drag instead of a click. */
 const DRAG_HOLD_THRESHOLD_MS = 400;
@@ -138,6 +162,7 @@ export default function StepListEditor({
   localVariables,
   globalVariables,
   guiVariables,
+  radialVariables,
   nextStepIdRef,
   depth = 0,
 }: Props) {
@@ -203,6 +228,27 @@ export default function StepListEditor({
   const [guiControlFunctionArgs, setGuiControlFunctionArgs] = useState<ArgValues>({});
   const [stepIsCloseGui, setStepIsCloseGui] = useState(false);
   const [stepCloseGuiTarget, setStepCloseGuiTarget] = useState("");
+  const [stepIsOpenRadial, setStepIsOpenRadial] = useState(false);
+  const [stepRadialName, setStepRadialName] = useState("");
+  const [stepRadialMinDistance, setStepRadialMinDistance] = useState(String(DEFAULT_RADIAL_MIN_DISTANCE));
+  const [stepRadialTriggerOnMove, setStepRadialTriggerOnMove] = useState(false);
+  const [stepRadialKeepOpenOnSelect, setStepRadialKeepOpenOnSelect] = useState(false);
+  const [stepRadialShowOverlay, setStepRadialShowOverlay] = useState(true);
+  const [stepRadialRadius, setStepRadialRadius] = useState(String(DEFAULT_RADIAL_RADIUS));
+  const [stepRadialBackColor, setStepRadialBackColor] = useState(DEFAULT_RADIAL_BACK_COLOR);
+  const [stepRadialTextColor, setStepRadialTextColor] = useState(DEFAULT_RADIAL_TEXT_COLOR);
+  const [stepRadialOpacity, setStepRadialOpacity] = useState(DEFAULT_RADIAL_OPACITY);
+  const [stepRadialOptions, setStepRadialOptions] = useState<RadialOptions>({});
+  const [stepIsCloseRadial, setStepIsCloseRadial] = useState(false);
+  const [stepCloseRadialTarget, setStepCloseRadialTarget] = useState("");
+  const [stepRadialOnClose, setStepRadialOnClose] = useState<MenuItemTarget | null>(null);
+  /** Which slot the option form is editing — one of the five directions, or the selector's "ao fechar" call. */
+  const [radialOptionSlot, setRadialOptionSlot] = useState<RadialDirection | "onClose" | null>(null);
+  const [radialOptionLabel, setRadialOptionLabel] = useState("");
+  const [radialOptionBuiltinId, setRadialOptionBuiltinId] = useState("");
+  const [radialOptionBuiltinArgs, setRadialOptionBuiltinArgs] = useState<ArgValues>({});
+  const [radialOptionFunctionName, setRadialOptionFunctionName] = useState("");
+  const [radialOptionFunctionArgs, setRadialOptionFunctionArgs] = useState<ArgValues>({});
   const [isMenuItemFormOpen, setIsMenuItemFormOpen] = useState(false);
   const [editingMenuItemId, setEditingMenuItemId] = useState<number | null>(null);
   const [menuItemLabel, setMenuItemLabel] = useState("");
@@ -221,12 +267,10 @@ export default function StepListEditor({
   const [recordFullScreen, setRecordFullScreen] = useState(false);
   const [recordInsertWaits, setRecordInsertWaits] = useState(false);
   const [recordConvertDrag, setRecordConvertDrag] = useState(false);
-  const [recordTimeKeys, setRecordTimeKeys] = useState(false);
   const [stagedSteps, setStagedSteps] = useState<Step[]>([]);
   const recordFullScreenRef = useRef(recordFullScreen);
   const recordInsertWaitsRef = useRef(recordInsertWaits);
   const recordConvertDragRef = useRef(recordConvertDrag);
-  const recordTimeKeysRef = useRef(recordTimeKeys);
   const lastEventTimeRef = useRef<number | null>(null);
   const unsubscribeRecordingRef = useRef<(() => void) | null>(null);
   const isCapturingRef = useRef(false);
@@ -243,10 +287,6 @@ export default function StepListEditor({
   useEffect(() => {
     recordConvertDragRef.current = recordConvertDrag;
   }, [recordConvertDrag]);
-
-  useEffect(() => {
-    recordTimeKeysRef.current = recordTimeKeys;
-  }, [recordTimeKeys]);
 
   useEffect(() => {
     isCapturingRef.current = isCapturing;
@@ -284,15 +324,11 @@ export default function StepListEditor({
       let newStep: Step | null = null;
 
       if (event.kind === "key" && keyPressMeta) {
-        const duration = recordTimeKeysRef.current ? (event.heldMs ?? 0) : 0;
         newStep = {
           id: nextStepIdRef.current++,
           kind: "builtin",
           meta: keyPressMeta,
-          args: {
-            combo: { kind: "literal", value: event.combo },
-            duration: { kind: "literal", value: duration },
-          },
+          args: { combo: { kind: "literal", value: event.combo } },
         };
       } else if (event.kind === "click") {
         const windowBounds = event.window?.bounds;
@@ -404,7 +440,11 @@ export default function StepListEditor({
               ? "createGui"
               : stepIsCloseGui
                 ? "closeGui"
-                : "";
+                : stepIsOpenRadial
+                  ? "openRadialSelector"
+                  : stepIsCloseRadial
+                    ? "closeRadialSelector"
+                    : "";
 
   const stepPickerItems: FunctionPickerItem[] = [
     ...BUILTIN_FUNCTIONS.map((f) => ({
@@ -493,6 +533,24 @@ export default function StepListEditor({
       ),
       group: tFunctionCategoryLabel(t, "ui"),
     },
+    {
+      value: "openRadialSelector",
+      label: t("functionsSection.openRadialLabel", "Abrir seletor rápido circular"),
+      description: t(
+        "functionsSection.openRadialDescription",
+        "Marca a posição do mouse e mostra um círculo com até 5 opções; a opção escolhida é a direção para onde o mouse for movido até o seletor ser fechado."
+      ),
+      group: tFunctionCategoryLabel(t, "ui"),
+    },
+    {
+      value: "closeRadialSelector",
+      label: t("functionsSection.closeRadialLabel", "Fechar seletor rápido circular"),
+      description: t(
+        "functionsSection.closeRadialDescription",
+        "Fecha um seletor aberto antes e executa a opção correspondente ao deslocamento do mouse."
+      ),
+      group: tFunctionCategoryLabel(t, "ui"),
+    },
   ];
 
   function matchesVarActionType(type: HeaderParamType): boolean {
@@ -543,6 +601,21 @@ export default function StepListEditor({
     setStepGuiControls([]);
     setStepIsCloseGui(false);
     setStepCloseGuiTarget("");
+    setStepIsOpenRadial(false);
+    setStepRadialName("");
+    setStepRadialMinDistance(String(DEFAULT_RADIAL_MIN_DISTANCE));
+    setStepRadialTriggerOnMove(false);
+    setStepRadialKeepOpenOnSelect(false);
+    setStepRadialShowOverlay(true);
+    setStepRadialRadius(String(DEFAULT_RADIAL_RADIUS));
+    setStepRadialBackColor(DEFAULT_RADIAL_BACK_COLOR);
+    setStepRadialTextColor(DEFAULT_RADIAL_TEXT_COLOR);
+    setStepRadialOpacity(DEFAULT_RADIAL_OPACITY);
+    setStepRadialOptions({});
+    setStepRadialOnClose(null);
+    setStepIsCloseRadial(false);
+    setStepCloseRadialTarget("");
+    setRadialOptionSlot(null);
     setStepResetSignal((s) => s + 1);
   }
 
@@ -576,6 +649,12 @@ export default function StepListEditor({
     } else if (value === "closeGui") {
       resetStepSelectionState();
       setStepIsCloseGui(true);
+    } else if (value === "openRadialSelector") {
+      resetStepSelectionState();
+      setStepIsOpenRadial(true);
+    } else if (value === "closeRadialSelector") {
+      resetStepSelectionState();
+      setStepIsCloseRadial(true);
     } else {
       resetStepSelectionState();
     }
@@ -638,6 +717,22 @@ export default function StepListEditor({
     } else if (step.kind === "closeGui") {
       setStepIsCloseGui(true);
       setStepCloseGuiTarget(step.targetVar);
+    } else if (step.kind === "openRadialSelector") {
+      setStepIsOpenRadial(true);
+      setStepRadialName(step.name);
+      setStepRadialMinDistance(String(step.minDistance));
+      setStepRadialTriggerOnMove(step.triggerOnMove);
+      setStepRadialKeepOpenOnSelect(step.keepOpenOnSelect);
+      setStepRadialShowOverlay(step.showOverlay);
+      setStepRadialRadius(String(step.radius));
+      setStepRadialBackColor(step.backColor ?? DEFAULT_RADIAL_BACK_COLOR);
+      setStepRadialTextColor(step.textColor ?? DEFAULT_RADIAL_TEXT_COLOR);
+      setStepRadialOpacity(step.opacity ?? DEFAULT_RADIAL_OPACITY);
+      setStepRadialOptions(step.options);
+      setStepRadialOnClose(step.onClose ?? null);
+    } else if (step.kind === "closeRadialSelector") {
+      setStepIsCloseRadial(true);
+      setStepCloseRadialTarget(step.targetVar);
     } else {
       setStepVarAction(step.action);
       setStepVarTargetName(step.targetName);
@@ -665,6 +760,14 @@ export default function StepListEditor({
           stepVarAction === "promptInput"
         ? isValidAhkIdentifier(trimmedVarTargetName)
         : false;
+
+  // Every direction may be left unbound — a selector with no options is pointless but valid,
+  // and the options are usually filled in one at a time anyway.
+  const radialStepReady =
+    stepRadialName.trim() !== "" &&
+    isValidAhkIdentifier(radialVarNameFromName(stepRadialName.trim())) &&
+    Number(stepRadialMinDistance) > 0 &&
+    Number(stepRadialRadius) > 0;
 
   function buildStepFromSelection(): Step | null {
     if (stepFunctionName) {
@@ -756,6 +859,29 @@ export default function StepListEditor({
     if (stepIsCloseGui) {
       if (!stepCloseGuiTarget) return null;
       return { id: -1, kind: "closeGui", targetVar: stepCloseGuiTarget };
+    }
+    if (stepIsOpenRadial) {
+      if (!radialStepReady) return null;
+      return {
+        id: -1,
+        kind: "openRadialSelector",
+        varName: radialVarNameFromName(stepRadialName.trim()),
+        name: stepRadialName.trim(),
+        minDistance: Number(stepRadialMinDistance) || 0,
+        triggerOnMove: stepRadialTriggerOnMove,
+        keepOpenOnSelect: stepRadialTriggerOnMove && stepRadialKeepOpenOnSelect,
+        showOverlay: stepRadialShowOverlay,
+        radius: Number(stepRadialRadius) || DEFAULT_RADIAL_RADIUS,
+        backColor: stepRadialBackColor,
+        textColor: stepRadialTextColor,
+        opacity: stepRadialOpacity,
+        options: stepRadialOptions,
+        ...(stepRadialOnClose ? { onClose: stepRadialOnClose } : {}),
+      };
+    }
+    if (stepIsCloseRadial) {
+      if (!stepCloseRadialTarget) return null;
+      return { id: -1, kind: "closeRadialSelector", targetVar: stepCloseRadialTarget };
     }
     return null;
   }
@@ -862,6 +988,97 @@ export default function StepListEditor({
       setStepMenuItems((prev) => [...prev, { id: nextMenuItemIdRef.current++, label: menuItemLabel.trim(), target }]);
     }
     closeMenuItemForm();
+  }
+
+  const radialOptionBuiltin = BUILTIN_FUNCTIONS.find((f) => f.id === radialOptionBuiltinId);
+  const radialOptionFunctionTarget = functions.find((f) => f.name === radialOptionFunctionName);
+  const radialOptionFunctionCallParams = radialOptionFunctionTarget
+    ? expandHeaderParamsToCallParams(radialOptionFunctionTarget.params)
+    : [];
+  const radialOptionSelection = radialOptionBuiltinId
+    ? `builtin:${radialOptionBuiltinId}`
+    : radialOptionFunctionName
+      ? `custom:${radialOptionFunctionName}`
+      : "";
+
+  const radialOptionReady = radialOptionBuiltinId
+    ? Boolean(radialOptionBuiltin) && areArgsFilled(radialOptionBuiltin!.params, radialOptionBuiltinArgs)
+    : radialOptionFunctionName
+      ? Boolean(radialOptionFunctionTarget) &&
+        areArgsFilled(radialOptionFunctionCallParams, radialOptionFunctionArgs)
+      : false;
+
+  /** Opens the option form for one slot, pre-filled when that slot is already bound. */
+  function openRadialOptionForm(slot: RadialDirection | "onClose") {
+    const existing =
+      slot === "onClose"
+        ? stepRadialOnClose
+          ? { label: "", target: stepRadialOnClose }
+          : undefined
+        : stepRadialOptions[slot];
+    setRadialOptionSlot(slot);
+    setRadialOptionLabel(existing?.label ?? "");
+    if (existing?.target.kind === "builtin") {
+      setRadialOptionBuiltinId(existing.target.meta.id);
+      setRadialOptionBuiltinArgs({ ...existing.target.args });
+      setRadialOptionFunctionName("");
+      setRadialOptionFunctionArgs({});
+    } else if (existing?.target.kind === "customFunction") {
+      setRadialOptionFunctionName(existing.target.functionName);
+      setRadialOptionFunctionArgs({ ...existing.target.args });
+      setRadialOptionBuiltinId("");
+      setRadialOptionBuiltinArgs({});
+    } else {
+      setRadialOptionBuiltinId("");
+      setRadialOptionBuiltinArgs({});
+      setRadialOptionFunctionName("");
+      setRadialOptionFunctionArgs({});
+    }
+  }
+
+  function closeRadialOptionForm() {
+    setRadialOptionSlot(null);
+  }
+
+  function clearRadialOption(slot: RadialDirection | "onClose") {
+    if (slot === "onClose") {
+      setStepRadialOnClose(null);
+      return;
+    }
+    setStepRadialOptions((prev) => {
+      const next = { ...prev };
+      delete next[slot];
+      return next;
+    });
+  }
+
+  function selectRadialOptionTarget(value: string) {
+    if (value.startsWith("builtin:")) {
+      const id = value.slice("builtin:".length);
+      const meta = BUILTIN_FUNCTIONS.find((f) => f.id === id);
+      setRadialOptionBuiltinId(id);
+      setRadialOptionBuiltinArgs(meta ? defaultArgValues(meta.params) : {});
+      setRadialOptionFunctionName("");
+      setRadialOptionFunctionArgs({});
+    } else if (value.startsWith("custom:")) {
+      const name = value.slice("custom:".length);
+      const target = functions.find((f) => f.name === name);
+      setRadialOptionFunctionName(name);
+      setRadialOptionFunctionArgs(target ? defaultArgValues(expandHeaderParamsToCallParams(target.params)) : {});
+      setRadialOptionBuiltinId("");
+      setRadialOptionBuiltinArgs({});
+    }
+  }
+
+  function submitRadialOption() {
+    if (!radialOptionReady || radialOptionSlot === null) return;
+    const target: MenuItemTarget = radialOptionBuiltinId
+      ? { kind: "builtin", meta: radialOptionBuiltin!, args: { ...radialOptionBuiltinArgs } }
+      : { kind: "customFunction", functionName: radialOptionFunctionName, args: { ...radialOptionFunctionArgs } };
+    const slot = radialOptionSlot;
+    if (slot === "onClose") setStepRadialOnClose(target);
+    else setStepRadialOptions((prev) => ({ ...prev, [slot]: { label: radialOptionLabel.trim(), target } }));
+    closeRadialOptionForm();
   }
 
   const guiControlBuiltin = BUILTIN_FUNCTIONS.find((f) => f.id === guiControlBuiltinId);
@@ -1280,14 +1497,6 @@ export default function StepListEditor({
                   "Converter cliques alongados em arrastar"
                 )}
               />
-              <RecordOptionCheckbox
-                checked={recordTimeKeys}
-                onChange={setRecordTimeKeys}
-                label={t(
-                  "functionsSection.recordTimeKeys",
-                  "Cronometrar teclas alongadas (tempo real segurado)"
-                )}
-              />
             </div>
 
             <button
@@ -1320,6 +1529,7 @@ export default function StepListEditor({
                 localVariables={localVariables}
                 globalVariables={globalVariables}
                 guiVariables={guiVariables}
+                radialVariables={radialVariables}
                 nextStepIdRef={nextStepIdRef}
                 depth={depth + 1}
               />
@@ -1795,6 +2005,7 @@ export default function StepListEditor({
                       localVariables={localVariables}
                       globalVariables={globalVariables}
                       guiVariables={guiVariables}
+                      radialVariables={radialVariables}
                       nextStepIdRef={nextStepIdRef}
                       depth={depth + 1}
                     />
@@ -1813,6 +2024,7 @@ export default function StepListEditor({
                         localVariables={localVariables}
                         globalVariables={globalVariables}
                         guiVariables={guiVariables}
+                        radialVariables={radialVariables}
                         nextStepIdRef={nextStepIdRef}
                         depth={depth + 1}
                       />
@@ -2134,6 +2346,286 @@ export default function StepListEditor({
                   )}
                 </div>
               )}
+
+              {stepIsOpenRadial && (
+                <div className="flex flex-col gap-2 bg-menu-secondary/40 rounded-lg p-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs opacity-70">
+                      {t("functionsSection.openRadialNameLabel", "Nome do seletor")}
+                    </label>
+                    <input
+                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                      value={stepRadialName}
+                      onChange={(e) => setStepRadialName(e.target.value)}
+                      placeholder={t("functionsSection.openRadialNamePlaceholder", "Ex: Ações rápidas")}
+                    />
+                    {stepRadialName.trim() !== "" && (
+                      <span className="text-xs opacity-60">
+                        {t("functionsSection.createGuiVarNamePreview", "Variável: {{name}}", {
+                          name: radialVarNameFromName(stepRadialName.trim()),
+                        })}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs opacity-70">
+                      {t("functionsSection.openRadialMinDistanceLabel", "Deslocamento mínimo (px)")}
+                    </label>
+                    <input
+                      type="number"
+                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                      value={stepRadialMinDistance}
+                      onChange={(e) => setStepRadialMinDistance(e.target.value)}
+                    />
+                    <span className="text-xs opacity-60">
+                      {t(
+                        "functionsSection.openRadialMinDistanceHint",
+                        "Se o mouse não passar disso em nenhum dos eixos, a opção central é executada."
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <RecordOptionCheckbox
+                      checked={stepRadialTriggerOnMove}
+                      onChange={setStepRadialTriggerOnMove}
+                      label={t(
+                        "functionsSection.openRadialTriggerOnMove",
+                        "Executar assim que o mouse se mover (sem esperar o fechamento)"
+                      )}
+                    />
+                    {stepRadialTriggerOnMove && (
+                      <>
+                        <span className="text-xs opacity-60">
+                          {t(
+                            "functionsSection.openRadialTriggerOnMoveHint",
+                            "A opção da direção dispara no instante em que o mouse passa do mínimo. A opção central continua dependendo do passo de fechar — é só ali que dá para saber que o mouse não passou do mínimo."
+                          )}
+                        </span>
+                        <div className="flex flex-col gap-1 pl-5 mt-1">
+                          <RecordOptionCheckbox
+                            checked={stepRadialKeepOpenOnSelect}
+                            onChange={setStepRadialKeepOpenOnSelect}
+                            label={t(
+                              "functionsSection.openRadialKeepOpen",
+                              "Não fechar ao selecionar opção (escolher várias seguidas)"
+                            )}
+                          />
+                          <span className="text-xs opacity-60">
+                            {stepRadialKeepOpenOnSelect
+                              ? t(
+                                  "functionsSection.openRadialKeepOpenHint",
+                                  "O seletor fica aberto até o passo de fechar. Basta ir para outra direção para escolher de novo; ficar parado na mesma direção não repete a opção. Voltar ao centro também libera repetir a última."
+                                )
+                              : t(
+                                  "functionsSection.openRadialKeepOpenOffHint",
+                                  "O seletor some sozinho assim que uma opção é escolhida."
+                                )}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <RecordOptionCheckbox
+                      checked={stepRadialShowOverlay}
+                      onChange={setStepRadialShowOverlay}
+                      label={t(
+                        "functionsSection.openRadialShowOverlay",
+                        "Mostrar interface (círculo com as opções na tela)"
+                      )}
+                    />
+                    {!stepRadialShowOverlay && (
+                      <span className="text-xs opacity-60">
+                        {t(
+                          "functionsSection.openRadialHiddenHint",
+                          "Seletor invisível: nada aparece na tela, só o gesto do mouse decide a opção."
+                        )}
+                      </span>
+                    )}
+                  </div>
+
+                  {stepRadialShowOverlay && (
+                    <>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs opacity-70">
+                          {t("functionsSection.openRadialRadiusLabel", "Raio do círculo (px)")}
+                        </label>
+                        <input
+                          type="number"
+                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                          value={stepRadialRadius}
+                          onChange={(e) => setStepRadialRadius(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="flex gap-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs opacity-70">
+                            {t("functionsSection.openRadialBackColorLabel", "Cor de fundo")}
+                          </label>
+                          <input
+                            type="color"
+                            className="w-9 h-9 rounded cursor-pointer bg-menu-secondary border border-white/10"
+                            value={`#${stepRadialBackColor}`}
+                            onChange={(e) => setStepRadialBackColor(e.target.value.slice(1))}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs opacity-70">
+                            {t("functionsSection.openRadialTextColorLabel", "Cor do texto")}
+                          </label>
+                          <input
+                            type="color"
+                            className="w-9 h-9 rounded cursor-pointer bg-menu-secondary border border-white/10"
+                            value={`#${stepRadialTextColor}`}
+                            onChange={(e) => setStepRadialTextColor(e.target.value.slice(1))}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs opacity-70">
+                          {t("functionsSection.openRadialOpacityLabel", "Opacidade")}
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min={0}
+                            max={255}
+                            className="flex-1"
+                            value={stepRadialOpacity}
+                            onChange={(e) => setStepRadialOpacity(Number(e.target.value))}
+                          />
+                          <span className="text-xs opacity-70 font-mono w-10 text-right">
+                            {stepRadialOpacity}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs opacity-70">
+                      {t("functionsSection.openRadialOptionsLabel", "Opções por direção")}
+                    </label>
+                    <ul className="flex flex-col gap-1">
+                      {RADIAL_DIRECTIONS.map((direction) => {
+                        const option = stepRadialOptions[direction];
+                        return (
+                          <li
+                            key={direction}
+                            className="flex items-center justify-between bg-menu-secondary rounded-lg px-2.5 py-1 text-xs gap-2"
+                          >
+                            <span className="truncate">
+                              <span className="opacity-70">{radialDirectionLabel(t, direction)}: </span>
+                              <span className="font-mono">
+                                {option
+                                  ? option.target.kind === "customFunction"
+                                    ? option.target.functionName
+                                    : tFunctionName(t, option.target.meta)
+                                  : t("functionsSection.openRadialUnbound", "nada")}
+                              </span>
+                            </span>
+                            <div className="flex gap-1 shrink-0">
+                              <button
+                                className="button-secondary py-0.5 px-2 text-xs"
+                                onClick={() => openRadialOptionForm(direction)}
+                              >
+                                {option
+                                  ? t("functionsSection.edit", "Editar")
+                                  : t("functionsSection.openRadialBind", "Definir")}
+                              </button>
+                              {option && (
+                                <button
+                                  className="button-secondary py-0.5 px-2 text-xs"
+                                  onClick={() => clearRadialOption(direction)}
+                                >
+                                  {t("functionsSection.remove", "Remover")}
+                                </button>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs opacity-70">
+                      {t("functionsSection.openRadialOnCloseLabel", "Ao fechar o seletor (opcional)")}
+                    </label>
+                    <ul className="flex flex-col gap-1">
+                      <li className="flex items-center justify-between bg-menu-secondary rounded-lg px-2.5 py-1 text-xs gap-2">
+                        <span className="font-mono truncate">
+                          {stepRadialOnClose
+                            ? stepRadialOnClose.kind === "customFunction"
+                              ? stepRadialOnClose.functionName
+                              : tFunctionName(t, stepRadialOnClose.meta)
+                            : t("functionsSection.openRadialUnbound", "nada")}
+                        </span>
+                        <div className="flex gap-1 shrink-0">
+                          <button
+                            className="button-secondary py-0.5 px-2 text-xs"
+                            onClick={() => openRadialOptionForm("onClose")}
+                          >
+                            {stepRadialOnClose
+                              ? t("functionsSection.edit", "Editar")
+                              : t("functionsSection.openRadialBind", "Definir")}
+                          </button>
+                          {stepRadialOnClose && (
+                            <button
+                              className="button-secondary py-0.5 px-2 text-xs"
+                              onClick={() => clearRadialOption("onClose")}
+                            >
+                              {t("functionsSection.remove", "Remover")}
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    </ul>
+                    <span className="text-xs opacity-60">
+                      {t(
+                        "functionsSection.openRadialOnCloseHint",
+                        "Roda no passo de fechar, sempre depois da opção escolhida — inclusive quando ela já tinha disparado no movimento."
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {stepIsCloseRadial && (
+                <div className="flex flex-col gap-1 bg-menu-secondary/40 rounded-lg p-3">
+                  <label className="text-xs opacity-70">
+                    {t("functionsSection.closeRadialTargetLabel", "Seletor a fechar")}
+                  </label>
+                  {radialVariables.length === 0 ? (
+                    <p className="opacity-60 text-xs">
+                      {t(
+                        "functionsSection.closeRadialNoneAvailable",
+                        "Nenhum seletor disponível — crie um passo \"Abrir seletor rápido circular\" primeiro."
+                      )}
+                    </p>
+                  ) : (
+                    <select
+                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 w-full text-sm appearance-none"
+                      value={stepCloseRadialTarget}
+                      onChange={(e) => setStepCloseRadialTarget(e.target.value)}
+                    >
+                      <option value="">
+                        {t("functionsSection.closeRadialSelectPlaceholder", "Selecione um seletor")}
+                      </option>
+                      {radialVariables.map((v) => (
+                        <option key={v.key} value={v.key}>
+                          {v.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2 justify-end">
@@ -2158,7 +2650,11 @@ export default function StepListEditor({
                                 !isValidAhkIdentifier(guiVarNameFromTitle(stepGuiTitle.trim()))
                               : stepIsCloseGui
                                 ? !stepCloseGuiTarget
-                                : true
+                                : stepIsOpenRadial
+                                  ? !radialStepReady
+                                  : stepIsCloseRadial
+                                    ? !stepCloseRadialTarget
+                                    : true
                 }
                 onClick={submitStep}
               >
@@ -2256,6 +2752,100 @@ export default function StepListEditor({
                 {editingMenuItemId !== null
                   ? t("functionsSection.save", "Salvar")
                   : t("functionsSection.add", "Adicionar")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {radialOptionSlot !== null && (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black/50"
+          style={{ zIndex: formZ + 1 }}
+          onMouseDown={closeRadialOptionForm}
+        >
+          <div
+            className="bg-menu-dark rounded-lg shadow-lg p-4 flex flex-col gap-3 w-full max-w-lg max-h-[85vh] overflow-auto"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <span className="text-sm font-semibold">
+              {radialOptionSlot === "onClose"
+                ? t("functionsSection.openRadialOnCloseTitle", "Função ao fechar o seletor")
+                : t("functionsSection.openRadialOptionTitle", "Opção: {{direction}}", {
+                    direction: radialDirectionLabel(t, radialOptionSlot),
+                  })}
+            </span>
+
+            {/* The "ao fechar" call is never drawn, and an invisible selector draws no labels either. */}
+            {radialOptionSlot !== "onClose" && stepRadialShowOverlay && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs opacity-70">
+                  {t("functionsSection.openRadialOptionLabelLabel", "Texto mostrado no círculo")}
+                </label>
+                <input
+                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                  value={radialOptionLabel}
+                  onChange={(e) => setRadialOptionLabel(e.target.value)}
+                  placeholder={t("functionsSection.showMenuItemLabelPlaceholder", "Ex: Abrir configurações")}
+                  autoFocus
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs opacity-70">
+                {t("functionsSection.selectStepFunction", "Selecione uma função")}
+              </label>
+              <FunctionPicker
+                items={menuItemPickerItems}
+                value={radialOptionSelection}
+                onChange={selectRadialOptionTarget}
+                placeholder={t("functionsSection.selectStepFunction", "Selecione uma função")}
+                className="w-full"
+              />
+            </div>
+
+            {radialOptionBuiltin && radialOptionBuiltin.params.length > 0 && (
+              <StepArgsFields
+                targetId={radialOptionBuiltin.id}
+                params={radialOptionBuiltin.params}
+                headerParams={headerParams}
+                localVariables={localVariables}
+                globalVariables={globalVariables}
+                values={radialOptionBuiltinArgs}
+                onChange={(key, arg) => setRadialOptionBuiltinArgs((prev) => ({ ...prev, [key]: arg }))}
+                resetSignal={stepResetSignal}
+                title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                  name: tFunctionName(t, radialOptionBuiltin),
+                })}
+              />
+            )}
+
+            {radialOptionFunctionTarget && radialOptionFunctionCallParams.length > 0 && (
+              <StepArgsFields
+                params={radialOptionFunctionCallParams}
+                headerParams={headerParams}
+                localVariables={localVariables}
+                globalVariables={globalVariables}
+                values={radialOptionFunctionArgs}
+                onChange={(key, arg) => setRadialOptionFunctionArgs((prev) => ({ ...prev, [key]: arg }))}
+                resetSignal={stepResetSignal}
+                title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                  name: radialOptionFunctionTarget.name,
+                })}
+              />
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <button className="button-secondary" onClick={closeRadialOptionForm}>
+                {t("functionsSection.cancel", "Cancelar")}
+              </button>
+              <button
+                className="button-main disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={!radialOptionReady}
+                onClick={submitRadialOption}
+              >
+                {t("functionsSection.save", "Salvar")}
               </button>
             </div>
           </div>
