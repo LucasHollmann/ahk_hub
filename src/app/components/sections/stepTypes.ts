@@ -103,7 +103,7 @@ export type Step =
       id: number;
       kind: "flowControl";
       flowType: FlowControlType;
-      condition: ConditionValue;
+      conditions: ConditionValue[];
       body: Step[];
       elseBody?: Step[];
     }
@@ -265,6 +265,10 @@ export function conditionToAhkExpression(condition: ConditionValue): string {
   return `${condition.targetName} ${condition.operator} ${formatArgSourceForAssignment(condition.value)}`;
 }
 
+export function conditionsToAhkExpression(conditions: ConditionValue[]): string {
+  return conditions.map((condition) => `(${conditionToAhkExpression(condition)})`).join(" && ") || "true";
+}
+
 export function isConditionReady(condition: ConditionValue): boolean {
   if (condition.kind === "code") return condition.code.trim() !== "";
   if (condition.kind === "builtin") {
@@ -275,6 +279,10 @@ export function isConditionReady(condition: ConditionValue): boolean {
     condition.targetName !== "" &&
     (condition.value.kind !== "literal" || String(condition.value.value ?? "").trim() !== "")
   );
+}
+
+export function areConditionsReady(conditions: ConditionValue[], allowEmpty = false): boolean {
+  return (allowEmpty || conditions.length > 0) && conditions.every(isConditionReady);
 }
 
 export function stepLabel(t: Translate, step: Step, functions: FunctionEntry[]): string {
@@ -302,7 +310,7 @@ export function stepLabel(t: Translate, step: Step, functions: FunctionEntry[]):
     return `${t("functionsSection.varActionCreateTag", "criar")} (${scopeLabel}) ${step.targetName} = ${initialValueLabel}`;
   }
   if (step.kind === "flowControl") {
-    const expr = conditionToAhkExpression(step.condition);
+    const expr = conditionsToAhkExpression(step.conditions);
     return step.flowType === "loop"
       ? t("functionsSection.flowLoopSummary", "Loop enquanto {{condition}}", { condition: expr })
       : t("functionsSection.flowConditionalSummary", "Se {{condition}}", { condition: expr });
@@ -355,13 +363,14 @@ function collectStepGlobalNames(step: Step, globalVariables: GlobalVariable[], a
       acc.add(step.targetName);
     }
   } else if (step.kind === "flowControl") {
-    const condition = step.condition;
-    if (condition.kind === "variable") {
-      if (globalVariables.some((v) => v.name === condition.targetName)) acc.add(condition.targetName);
-      if (condition.value.kind === "globalVariable") acc.add(condition.value.variableName);
-    } else if (condition.kind === "builtin") {
-      for (const arg of Object.values(condition.args)) {
-        if (arg.kind === "globalVariable") acc.add(arg.variableName);
+    for (const condition of step.conditions) {
+      if (condition.kind === "variable") {
+        if (globalVariables.some((v) => v.name === condition.targetName)) acc.add(condition.targetName);
+        if (condition.value.kind === "globalVariable") acc.add(condition.value.variableName);
+      } else if (condition.kind === "builtin") {
+        for (const arg of Object.values(condition.args)) {
+          if (arg.kind === "globalVariable") acc.add(arg.variableName);
+        }
       }
     }
     for (const s of step.body) collectStepGlobalNames(s, globalVariables, acc);
@@ -711,7 +720,7 @@ function stepToAhkLines(step: Step, allFunctions: FunctionEntry[], indent: strin
   }
 
   if (step.kind === "flowControl") {
-    const expr = conditionToAhkExpression(step.condition);
+    const expr = conditionsToAhkExpression(step.conditions);
     const keyword = step.flowType === "loop" ? "while" : "if";
     const innerIndent = `${indent}    `;
     const bodyLines = step.body.flatMap((s) => stepToAhkLines(s, allFunctions, innerIndent));
@@ -900,7 +909,7 @@ function serializeStep(step: Step): SerializedStep {
     return {
       kind: "flowControl",
       flowType: step.flowType,
-      condition: step.condition,
+      conditions: step.conditions,
       body: step.body.map(serializeStep),
       ...(step.elseBody ? { elseBody: step.elseBody.map(serializeStep) } : {}),
     };
@@ -1019,7 +1028,7 @@ export function hydrateSteps(
         id: nextIdRef.current++,
         kind: "flowControl",
         flowType: s.flowType,
-        condition: hydrateCondition(s.condition),
+        conditions: (s.conditions ?? (s.condition ? [s.condition] : [])).map(hydrateCondition),
         body: hydrateSteps(s.body ?? [], nextIdRef),
         ...(s.elseBody ? { elseBody: hydrateSteps(s.elseBody, nextIdRef) } : {}),
       });
@@ -1149,23 +1158,25 @@ export function clearHeaderParamRefs(
     }
     if (step.kind === "flowControl") {
       let stepChanged = false;
-      let condition = step.condition;
-      if (
-        condition.kind === "variable" &&
-        condition.value.kind === "headerParam" &&
-        identifiers.includes(condition.value.paramKey)
-      ) {
-        condition = { ...condition, value: { kind: "literal", value: "" } };
-        stepChanged = true;
-      } else if (condition.kind === "builtin") {
-        const builtin = condition;
-        const meta = BUILTIN_CONDITIONS.find((c) => c.id === builtin.conditionId);
-        const args = clearArgsReferencing(identifiers, builtin.args, meta?.params ?? []);
-        if (args !== builtin.args) {
-          condition = { ...builtin, args };
+      const conditions = step.conditions.map((condition) => {
+        if (
+          condition.kind === "variable" &&
+          condition.value.kind === "headerParam" &&
+          identifiers.includes(condition.value.paramKey)
+        ) {
           stepChanged = true;
+          return { ...condition, value: { kind: "literal" as const, value: "" } };
         }
-      }
+        if (condition.kind === "builtin") {
+          const meta = BUILTIN_CONDITIONS.find((c) => c.id === condition.conditionId);
+          const args = clearArgsReferencing(identifiers, condition.args, meta?.params ?? []);
+          if (args !== condition.args) {
+            stepChanged = true;
+            return { ...condition, args };
+          }
+        }
+        return condition;
+      });
       const body = clearHeaderParamRefs(step.body, identifiers, functions);
       const elseBody = step.elseBody
         ? clearHeaderParamRefs(step.elseBody, identifiers, functions)
@@ -1173,7 +1184,7 @@ export function clearHeaderParamRefs(
       if (body !== step.body || elseBody !== step.elseBody) stepChanged = true;
       if (!stepChanged) return step;
       changed = true;
-      return { ...step, condition, body, ...(step.elseBody ? { elseBody } : {}) };
+      return { ...step, conditions, body, ...(step.elseBody ? { elseBody } : {}) };
     }
     if (step.kind === "showMenu") {
       let stepChanged = false;

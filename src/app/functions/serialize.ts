@@ -1,4 +1,5 @@
 import type {
+  ConditionValue,
   FunctionEntry,
   GlobalVariable,
   Remapping,
@@ -7,6 +8,7 @@ import type {
   VariableType,
 } from "../components/types";
 import { BUILTIN_FUNCTIONS } from "./builtins";
+import { quoteAhkString } from "./ahk";
 import type { ArgValues, ParamValues } from "./types";
 
 export const AHK_HUB_HEADER = "; Gerado automaticamente pelo AHK Hub (AutoHotkey v2)";
@@ -27,6 +29,8 @@ type SerializedRemapping = {
   destination: SerializedDestination;
   /** Absent in files saved before this existed — treated as "down". */
   trigger?: RemappingTrigger;
+  conditions?: ConditionValue[];
+  windowCondition?: { mode: "only" | "except"; titleContains: string };
 };
 
 type SerializedState = {
@@ -72,6 +76,7 @@ export function serializeStateComment(
       from: r.from,
       destination: serializeDestination(r.destination),
       trigger: r.trigger,
+      conditions: r.conditions,
     })),
     functions,
     variables,
@@ -128,6 +133,22 @@ export function parseAhkScript(content: string): ParseResult {
     const destination = r.destination;
     // Files saved before this existed behaved like a plain `hotkey::call` remap — "full" now.
     const trigger: RemappingTrigger = r.trigger === "up" || r.trigger === "down" ? r.trigger : "full";
+    const legacyWindowCondition =
+      r.windowCondition &&
+      (r.windowCondition.mode === "only" || r.windowCondition.mode === "except") &&
+      typeof r.windowCondition.titleContains === "string"
+        ? {
+            kind: "code" as const,
+            code: (() => {
+              const contains = `InStr(WinGetTitle("A"), ${quoteAhkString(r.windowCondition!.titleContains)}) > 0`;
+              return r.windowCondition!.mode === "except" ? `!(${contains})` : contains;
+            })(),
+          }
+        : undefined;
+    const conditions = [
+      ...(Array.isArray(r.conditions) ? r.conditions : []),
+      ...(legacyWindowCondition ? [legacyWindowCondition] : []),
+    ];
     if (destination.kind === "key" && typeof destination.combo === "string") {
       // Legacy format, from before "send a key" became the KeyPress builtin.
       const meta = BUILTIN_FUNCTIONS.find((f) => f.id === "keyPress");
@@ -143,6 +164,7 @@ export function parseAhkScript(content: string): ParseResult {
           params: { combo: destination.combo },
         },
         trigger,
+        conditions,
       });
     } else if (destination.kind === "customFunction" && typeof destination.name === "string") {
       remappings.push({
@@ -150,6 +172,7 @@ export function parseAhkScript(content: string): ParseResult {
         from: r.from,
         destination: { kind: "customFunction", name: destination.name, args: destination.args ?? {} },
         trigger,
+        conditions,
       });
     } else if (destination.kind === "builtin" && typeof destination.functionId === "string") {
       const meta = BUILTIN_FUNCTIONS.find((f) => f.id === destination.functionId);
@@ -161,6 +184,7 @@ export function parseAhkScript(content: string): ParseResult {
         from: r.from,
         destination: { kind: "builtin", meta, params: destination.params ?? {} },
         trigger,
+        conditions,
       });
     } else {
       return { ok: false, error: "tipo de destino desconhecido" };

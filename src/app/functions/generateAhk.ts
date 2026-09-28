@@ -2,6 +2,7 @@ import type { FunctionEntry, GlobalVariable, Remapping } from "../components/typ
 import {
   collectAllGuiVariablesAcrossFunctions,
   collectAllRadialVariablesAcrossFunctions,
+  conditionsToAhkExpression,
 } from "../components/sections/stepTypes";
 import { radialSelectorDeclarations } from "./radialSelector";
 import { expandHeaderParamsToCallParams, type FunctionMeta } from "./types";
@@ -35,6 +36,14 @@ function collectUsedFunctions(remappings: Remapping[], functions: FunctionEntry[
       usedBuiltins.set(destination.meta.id, destination.meta);
     } else if (destination.kind === "customFunction") {
       usedCustomFunctions.add(destination.name);
+    }
+  }
+
+  for (const remapping of remappings) {
+    for (const condition of remapping.conditions) {
+      if (condition.kind !== "builtin") continue;
+      const meta = BUILTIN_CONDITIONS.find((candidate) => candidate.id === condition.conditionId);
+      if (meta?.toAhkDeclaration) usedBuiltins.set(meta.id, meta);
     }
   }
 
@@ -177,6 +186,8 @@ export function generateAhkScript(
     }
 
     if (callExpr) {
+      lines.push(r.conditions.length > 0 ? `#HotIf ${conditionsToAhkExpression(r.conditions)}` : "#HotIf");
+
       if (r.trigger === "up") {
         lines.push(`${hotkey} Up::${callExpr}`);
       } else if (r.trigger === "down") {
@@ -190,6 +201,8 @@ export function generateAhkScript(
 
     lines.push("");
   }
+
+  lines.push("#HotIf", "");
 
   lines.push(...serializeStateComment(remappings, functions, variables));
 

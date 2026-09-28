@@ -17,7 +17,7 @@ import {
   EMPTY_COORDINATE_ASSIGNMENT,
 } from "./CoordinateFields";
 import StepArgsFields from "./StepArgsFields";
-import ConditionFields from "./ConditionFields";
+import ConditionsEditor from "./ConditionsEditor";
 import FunctionPicker, { FunctionPickerPopup, type FunctionPickerItem } from "./FunctionPicker";
 import { BUILTIN_FUNCTIONS } from "../../functions/builtins";
 import {
@@ -41,7 +41,7 @@ import {
 import { useTranslation } from "../../i18n/I18nContext";
 import {
   guiVarNameFromTitle,
-  isConditionReady,
+  areConditionsReady,
   radialVarNameFromName,
   stepLabel,
   type GuiControl,
@@ -183,7 +183,9 @@ export default function StepListEditor({
   const [stepVarPromptText, setStepVarPromptText] = useState("");
   const [stepVarPromptTitle, setStepVarPromptTitle] = useState("");
   const [stepFlowType, setStepFlowType] = useState<FlowControlType | null>(null);
-  const [stepFlowCondition, setStepFlowCondition] = useState<ConditionValue>({ kind: "code", code: "" });
+  const [stepFlowConditions, setStepFlowConditions] = useState<ConditionValue[]>([
+    { kind: "code", code: "" },
+  ]);
   const [stepFlowBody, setStepFlowBody] = useState<Step[]>([]);
   const [stepFlowElseBody, setStepFlowElseBody] = useState<Step[]>([]);
   const [stepIsMenu, setStepIsMenu] = useState(false);
@@ -577,7 +579,7 @@ export default function StepListEditor({
     setStepVarPromptText("");
     setStepVarPromptTitle("");
     setStepFlowType(null);
-    setStepFlowCondition({ kind: "code", code: "" });
+    setStepFlowConditions([{ kind: "code", code: "" }]);
     setStepFlowBody([]);
     setStepFlowElseBody([]);
     setStepIsMenu(false);
@@ -690,7 +692,7 @@ export default function StepListEditor({
       setStepFunctionArgs({ ...step.args });
     } else if (step.kind === "flowControl") {
       setStepFlowType(step.flowType);
-      setStepFlowCondition(step.condition);
+      setStepFlowConditions(step.conditions);
       setStepFlowBody(step.body);
       setStepFlowElseBody(step.elseBody ?? []);
     } else if (step.kind === "showMenu") {
@@ -817,12 +819,12 @@ export default function StepListEditor({
       };
     }
     if (stepFlowType) {
-      if (!isConditionReady(stepFlowCondition)) return null;
+      if (!areConditionsReady(stepFlowConditions)) return null;
       return {
         id: -1,
         kind: "flowControl",
         flowType: stepFlowType,
-        condition: stepFlowCondition,
+        conditions: stepFlowConditions,
         body: stepFlowBody,
         ...(stepFlowType === "conditional" && stepFlowElseBody.length > 0
           ? { elseBody: stepFlowElseBody }
@@ -1983,9 +1985,9 @@ export default function StepListEditor({
 
               {stepFlowType && (
                 <>
-                  <ConditionFields
-                    condition={stepFlowCondition}
-                    onChange={setStepFlowCondition}
+                  <ConditionsEditor
+                    conditions={stepFlowConditions}
+                    onChange={setStepFlowConditions}
                     headerParams={headerParams}
                     localVariables={localVariables}
                     globalVariables={globalVariables}
@@ -2642,7 +2644,7 @@ export default function StepListEditor({
                       : stepVarAction
                         ? !varStepReady
                         : stepFlowType
-                          ? !isConditionReady(stepFlowCondition)
+                          ? !areConditionsReady(stepFlowConditions)
                           : stepIsMenu
                             ? stepMenuTitle.trim() === "" || stepMenuItems.length === 0
                             : stepIsCreateGui

@@ -356,6 +356,7 @@ export default function Dashboard() {
           {activeTab === "remappings" ? (
             <RemappingsSection
               functions={functions}
+              globalVariables={variables}
               remappings={remappings}
               onAdd={addRemapping}
               onUpdate={updateRemapping}

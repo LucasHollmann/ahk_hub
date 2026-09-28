@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import KeyComboPicker from "./KeyComboPicker";
 import ParamsFields from "./ParamsFields";
 import StepArgsFields from "./StepArgsFields";
+import ConditionsEditor from "./ConditionsEditor";
 import FunctionPicker, { type FunctionPickerItem } from "./FunctionPicker";
-import type { FunctionEntry, Remapping, RemappingTrigger } from "../types";
+import type { ConditionValue, FunctionEntry, GlobalVariable, Remapping, RemappingTrigger } from "../types";
 import { BUILTIN_FUNCTIONS } from "../../functions/builtins";
 import {
   areArgsFilled,
@@ -14,6 +15,7 @@ import {
   defaultParamValues,
   expandHeaderParamsToCallParams,
   getParamEntries,
+  type HeaderParamDef,
   tFunctionCategoryLabel,
   tFunctionDescription,
   tFunctionName,
@@ -23,6 +25,7 @@ import {
   type ParamValues,
 } from "../../functions/types";
 import { useTranslation, type Translate } from "../../i18n/I18nContext";
+import { areConditionsReady } from "./stepTypes";
 
 const DIRECT_BUILTIN_FUNCTIONS = BUILTIN_FUNCTIONS.filter((f) => f.usableDirectly);
 
@@ -49,6 +52,14 @@ function triggerTagLabel(trigger: Remapping["trigger"], t: Translate): string | 
   if (trigger === "up") return t("remappings.triggerUp", "Ao soltar");
   if (trigger === "down") return t("remappings.triggerDown", "Ao pressionar");
   return null;
+}
+
+function conditionTagLabel(remapping: Remapping, t: Translate): string | null {
+  if (remapping.conditions.length === 0) return null;
+  if (remapping.conditions.length === 1) return t("remappings.conditionCountOne", "1 condição");
+  return t("remappings.conditionCountMany", "{{count}} condições", {
+    count: remapping.conditions.length,
+  });
 }
 
 function customFunctionEntries(
@@ -103,6 +114,11 @@ function RemappingItem({
               {triggerTagLabel(remapping.trigger, t)}
             </span>
           )}
+          {conditionTagLabel(remapping, t) && (
+            <span className="text-[11px] px-1.5 py-0.5 rounded bg-white/10 opacity-70">
+              {conditionTagLabel(remapping, t)}
+            </span>
+          )}
         </span>
         <div className="flex gap-2">
           <button
@@ -153,6 +169,7 @@ function RemappingItem({
 
 type Props = {
   functions: FunctionEntry[];
+  globalVariables: GlobalVariable[];
   remappings: Remapping[];
   onAdd: (remapping: Omit<Remapping, "id">) => void;
   onUpdate: (id: number, remapping: Omit<Remapping, "id">) => void;
@@ -161,6 +178,7 @@ type Props = {
 
 export default function RemappingsSection({
   functions,
+  globalVariables,
   remappings,
   onAdd,
   onUpdate,
@@ -172,6 +190,7 @@ export default function RemappingsSection({
   const [fromInitialValue, setFromInitialValue] = useState<string | undefined>();
   const [from, setFrom] = useState("");
   const [trigger, setTrigger] = useState<RemappingTrigger>("full");
+  const [conditions, setConditions] = useState<ConditionValue[]>([]);
   const [toFunction, setToFunction] = useState("");
   const [paramValues, setParamValues] = useState<ParamValues>({});
   const [toFunctionArgs, setToFunctionArgs] = useState<ArgValues>({});
@@ -186,6 +205,12 @@ export default function RemappingsSection({
   const customCallParams = selectedCustomFunction
     ? expandHeaderParamsToCallParams(selectedCustomFunction.params)
     : [];
+  const conditionGlobalVariables: HeaderParamDef[] = globalVariables
+    .filter(
+      (variable): variable is GlobalVariable & { type: Exclude<GlobalVariable["type"], "array"> } =>
+        variable.type !== "array"
+    )
+    .map((variable) => ({ key: variable.name, label: variable.name, type: variable.type }));
 
   const toFunctionPickerItems: FunctionPickerItem[] = [
     ...DIRECT_BUILTIN_FUNCTIONS.map((f) => ({
@@ -224,26 +249,27 @@ export default function RemappingsSection({
   const paramsFilled =
     (!selectedBuiltin || areParamsFilled(selectedBuiltin, paramValues)) &&
     (!selectedCustomFunction || areArgsFilled(customCallParams, toFunctionArgs));
+  const conditionsReady = areConditionsReady(conditions, true);
 
   function resetForm() {
     setEditingId(null);
     setFromInitialValue(undefined);
     setTrigger("full");
+    setConditions([]);
     setToFunction("");
     setResetSignal((s) => s + 1);
   }
 
   function submitRemapping() {
-    if (!from || !toFunction || !paramsFilled) return;
+    if (!from || !toFunction || !paramsFilled || !conditionsReady) return;
 
     const destination: Remapping["destination"] = selectedBuiltin
       ? { kind: "builtin", meta: selectedBuiltin, params: { ...paramValues } }
       : { kind: "customFunction", name: toFunction, args: { ...toFunctionArgs } };
-
     if (editingId !== null) {
-      onUpdate(editingId, { from, destination, trigger });
+      onUpdate(editingId, { from, destination, trigger, conditions });
     } else {
-      onAdd({ from, destination, trigger });
+      onAdd({ from, destination, trigger, conditions });
     }
 
     resetForm();
@@ -264,6 +290,7 @@ export default function RemappingsSection({
     setEditingId(remapping.id);
     setFromInitialValue(remapping.from);
     setTrigger(remapping.trigger);
+    setConditions(remapping.conditions);
 
     const { destination } = remapping;
     if (destination.kind === "builtin") {
@@ -357,6 +384,15 @@ export default function RemappingsSection({
               </div>
             </div>
 
+            <ConditionsEditor
+              conditions={conditions}
+              onChange={setConditions}
+              headerParams={[]}
+              localVariables={[]}
+              globalVariables={conditionGlobalVariables}
+              allowEmpty
+            />
+
             <div className="flex flex-col gap-1">
               <label className="text-sm">{t("remappings.triggerLabel", "Disparar")}</label>
               <div className="flex gap-1 bg-menu-secondary rounded-md p-0.5 text-xs w-fit">
@@ -434,7 +470,12 @@ export default function RemappingsSection({
               </button>
               <button
                 className="button-main disabled:opacity-40 disabled:cursor-not-allowed"
-                disabled={!from || !toFunction || !paramsFilled}
+                disabled={
+                  !from ||
+                  !toFunction ||
+                  !paramsFilled ||
+                  !conditionsReady
+                }
                 onClick={submitRemapping}
               >
                 {editingId !== null ? t("remappings.save", "Salvar") : t("remappings.add", "Adicionar")}

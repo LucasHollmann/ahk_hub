@@ -87,7 +87,9 @@ export type SerializedStep =
   | {
       kind: "flowControl";
       flowType: FlowControlType;
-      condition: ConditionValue;
+      conditions?: ConditionValue[];
+      /** Legacy singular condition, read only when loading older scripts. */
+      condition?: ConditionValue;
       /** Steps that run inside the loop / when the condition is true. */
       body: SerializedStep[];
       /** Conditional-only: steps that run when the condition is false. */
@@ -172,6 +174,7 @@ export type Remapping = {
   from: string;
   destination: RemappingDestination;
   trigger: RemappingTrigger;
+  conditions: ConditionValue[];
 };
 
 export type GlobalVariable = {
