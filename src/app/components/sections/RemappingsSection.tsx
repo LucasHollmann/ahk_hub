@@ -26,6 +26,7 @@ import {
 } from "../../functions/types";
 import { useTranslation, type Translate } from "../../i18n/I18nContext";
 import { areConditionsReady } from "./stepTypes";
+import { isMouseWheelHotkey } from "../../functions/ahk";
 
 const DIRECT_BUILTIN_FUNCTIONS = BUILTIN_FUNCTIONS.filter((f) => f.usableDirectly);
 
@@ -52,6 +53,10 @@ function triggerTagLabel(trigger: Remapping["trigger"], t: Translate): string | 
   if (trigger === "up") return t("remappings.triggerUp", "Ao soltar");
   if (trigger === "down") return t("remappings.triggerDown", "Ao pressionar");
   return null;
+}
+
+function sourceTriggerTagLabel(remapping: Remapping, t: Translate): string | null {
+  return isMouseWheelHotkey(remapping.from) ? null : triggerTagLabel(remapping.trigger, t);
 }
 
 function conditionTagLabel(remapping: Remapping, t: Translate): string | null {
@@ -109,9 +114,9 @@ function RemappingItem({
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-2">
           {remapping.from} → {destinationLabel(remapping, t)}
-          {triggerTagLabel(remapping.trigger, t) && (
+          {sourceTriggerTagLabel(remapping, t) && (
             <span className="text-[11px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/10 opacity-70">
-              {triggerTagLabel(remapping.trigger, t)}
+              {sourceTriggerTagLabel(remapping, t)}
             </span>
           )}
           {conditionTagLabel(remapping, t) && (
@@ -289,7 +294,7 @@ export default function RemappingsSection({
   function startEdit(remapping: Remapping) {
     setEditingId(remapping.id);
     setFromInitialValue(remapping.from);
-    setTrigger(remapping.trigger);
+    setTrigger(isMouseWheelHotkey(remapping.from) ? "full" : remapping.trigger);
     setConditions(remapping.conditions);
 
     const { destination } = remapping;
@@ -359,7 +364,7 @@ export default function RemappingsSection({
 
             <div className="flex gap-2 items-end">
               <div className="flex flex-col gap-1">
-                <label className="text-sm">{t("remappings.sourceKey", "Tecla de origem")}</label>
+                <label className="text-sm">{t("remappings.sourceKey", "Tecla ou ação de origem")}</label>
                 <KeyComboPicker
                   resetSignal={resetSignal}
                   initialValue={fromInitialValue}
@@ -393,6 +398,11 @@ export default function RemappingsSection({
               allowEmpty
             />
 
+            {isMouseWheelHotkey(from) ? (
+              <span className="text-xs opacity-60">
+                {t("remappings.mouseWheelTriggerHint", "Dispara ao girar a roda do mouse.")}
+              </span>
+            ) : (
             <div className="flex flex-col gap-1">
               <label className="text-sm">{t("remappings.triggerLabel", "Disparar")}</label>
               <div className="flex gap-1 bg-menu-secondary rounded-md p-0.5 text-xs w-fit">
@@ -441,6 +451,7 @@ export default function RemappingsSection({
                 </span>
               )}
             </div>
+            )}
 
             {selectedBuiltin && selectedBuiltin.params.length > 0 && (
               <ParamsFields

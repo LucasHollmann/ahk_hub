@@ -7,6 +7,18 @@ type Modifier = "Ctrl" | "Shift" | "Alt" | "Win";
 
 const MODIFIERS: Modifier[] = ["Ctrl", "Shift", "Alt", "Win"];
 
+const MOUSE_ACTIONS = [
+  { key: "LButton", labelKey: "keyCombo.mouseLeft", label: "Clique esquerdo", group: "button" },
+  { key: "RButton", labelKey: "keyCombo.mouseRight", label: "Clique direito", group: "button" },
+  { key: "MButton", labelKey: "keyCombo.mouseMiddle", label: "Clique do meio", group: "button" },
+  { key: "XButton1", labelKey: "keyCombo.mouseX1", label: "Botão lateral 1", group: "button" },
+  { key: "XButton2", labelKey: "keyCombo.mouseX2", label: "Botão lateral 2", group: "button" },
+  { key: "WheelUp", labelKey: "keyCombo.mouseWheelUp", label: "Roda para cima", group: "wheel" },
+  { key: "WheelDown", labelKey: "keyCombo.mouseWheelDown", label: "Roda para baixo", group: "wheel" },
+  { key: "WheelLeft", labelKey: "keyCombo.mouseWheelLeft", label: "Roda para a esquerda", group: "wheel" },
+  { key: "WheelRight", labelKey: "keyCombo.mouseWheelRight", label: "Roda para a direita", group: "wheel" },
+] as const;
+
 const MODIFIER_KEYS = new Set(["Control", "Shift", "Alt", "Meta"]);
 
 const MODIFIER_LABELS: Record<string, Modifier> = {
@@ -69,9 +81,11 @@ export default function KeyComboPicker({ resetSignal, onChange, initialValue }: 
   const [key, setKey] = useState(() => parseCombo(initialValue ?? "").key);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isModifierMenuOpen, setIsModifierMenuOpen] = useState(false);
+  const [isMouseMenuOpen, setIsMouseMenuOpen] = useState(false);
   const otherKeyDuringHold = useRef(false);
   const keyInputRef = useRef<HTMLInputElement>(null);
   const modifierMenuRef = useRef<HTMLDivElement>(null);
+  const mouseMenuRef = useRef<HTMLDivElement>(null);
 
   // Read through a ref so the echo below never depends on the identity of a callback that
   // most callers declare inline, and so re-rendering can never re-fire it on its own.
@@ -124,6 +138,19 @@ export default function KeyComboPicker({ resetSignal, onChange, initialValue }: 
   }, [isModifierMenuOpen]);
 
   useEffect(() => {
+    if (!isMouseMenuOpen) return;
+
+    function onClickOutside(e: globalThis.MouseEvent) {
+      if (!mouseMenuRef.current?.contains(e.target as Node)) {
+        setIsMouseMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("mousedown", onClickOutside, true);
+    return () => window.removeEventListener("mousedown", onClickOutside, true);
+  }, [isMouseMenuOpen]);
+
+  useEffect(() => {
     if (!isCapturing) return;
 
     function finish(pressedKey: string) {
@@ -171,6 +198,13 @@ export default function KeyComboPicker({ resetSignal, onChange, initialValue }: 
   function toggleModifier(modifier: Modifier) {
     setModifiers((prev) => ({ ...prev, [modifier]: !prev[modifier] }));
   }
+
+  function selectMouseAction(mouseKey: string) {
+    setKey(mouseKey);
+    setIsMouseMenuOpen(false);
+  }
+
+  const mouseActionLabel = MOUSE_ACTIONS.find((action) => action.key === key);
 
   return (
     <div className="flex gap-2 items-center">
@@ -220,11 +254,59 @@ export default function KeyComboPicker({ resetSignal, onChange, initialValue }: 
       <input
         ref={keyInputRef}
         className="bg-menu-secondary rounded-lg px-3 py-2 outline-none cursor-pointer caret-transparent w-40 h-10"
-        value={isCapturing ? t("keyCombo.pressingKey", "Pressione uma tecla...") : key}
+        value={
+          isCapturing
+            ? t("keyCombo.pressingKey", "Pressione uma tecla...")
+            : mouseActionLabel
+              ? t(mouseActionLabel.labelKey, mouseActionLabel.label)
+              : key
+        }
         onMouseDown={startCapturing}
         readOnly
         placeholder={t("keyCombo.placeholder", "Clique e pressione a tecla")}
       />
+      <div className="relative" ref={mouseMenuRef}>
+        <button
+          type="button"
+          className="bg-menu-secondary rounded-lg px-3 py-2 text-sm h-10 outline-none focus:outline-none cursor-pointer"
+          onClick={() => {
+            setIsCapturing(false);
+            setIsMouseMenuOpen((previous) => !previous);
+          }}
+        >
+          {t("keyCombo.mouseButton", "Mouse")}
+        </button>
+        {isMouseMenuOpen && (
+          <div className="absolute left-0 z-10 mt-1 w-52 max-h-72 overflow-auto bg-menu-secondary rounded-lg shadow-lg p-2 flex flex-col gap-1">
+            <span className="px-1 py-1 text-[11px] font-semibold uppercase opacity-50">
+              {t("keyCombo.mouseButtonsGroup", "Botões")}
+            </span>
+            {MOUSE_ACTIONS.filter((action) => action.group === "button").map((action) => (
+              <button
+                key={action.key}
+                type="button"
+                className="text-left text-xs px-2 py-1.5 rounded hover:bg-white/5 cursor-pointer"
+                onClick={() => selectMouseAction(action.key)}
+              >
+                {t(action.labelKey, action.label)}
+              </button>
+            ))}
+            <span className="px-1 py-1 text-[11px] font-semibold uppercase opacity-50">
+              {t("keyCombo.mouseWheelGroup", "Roda")}
+            </span>
+            {MOUSE_ACTIONS.filter((action) => action.group === "wheel").map((action) => (
+              <button
+                key={action.key}
+                type="button"
+                className="text-left text-xs px-2 py-1.5 rounded hover:bg-white/5 cursor-pointer"
+                onClick={() => selectMouseAction(action.key)}
+              >
+                {t(action.labelKey, action.label)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

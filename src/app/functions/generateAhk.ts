@@ -11,6 +11,7 @@ import { BUILTIN_CONDITIONS } from "./conditions";
 import {
   comboToHotkey,
   comboToKeyWaitName,
+  isMouseWheelHotkey,
   formatAhkCallArgs,
   formatVariableInitialLiteral,
   toConditionFunctionName,
@@ -188,7 +189,9 @@ export function generateAhkScript(
     if (callExpr) {
       lines.push(r.conditions.length > 0 ? `#HotIf ${conditionsToAhkExpression(r.conditions)}` : "#HotIf");
 
-      if (r.trigger === "up") {
+      if (isMouseWheelHotkey(r.from)) {
+        lines.push(`${hotkey}::${callExpr}`);
+      } else if (r.trigger === "up") {
         lines.push(`${hotkey} Up::${callExpr}`);
       } else if (r.trigger === "down") {
         // Fires once for the press, then blocks re-firing (e.g. from OS key-repeat while held)

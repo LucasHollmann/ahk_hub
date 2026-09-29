@@ -15,6 +15,8 @@ const STANDALONE_KEY_NAMES: Record<string, string> = {
   Win: "LWin",
 };
 
+const MOUSE_WHEEL_KEYS = new Set(["WheelUp", "WheelDown", "WheelLeft", "WheelRight"]);
+
 function splitCombo(combo: string) {
   const parts = combo.split("+");
   const key = parts.pop() ?? "";
@@ -28,6 +30,11 @@ export function comboToHotkey(combo: string): string {
   }
   const symbols = modifiers.map((m) => MODIFIER_SYMBOLS[m] ?? "").join("");
   return `${symbols}${key}`;
+}
+
+export function isMouseWheelHotkey(combo: string): boolean {
+  const { key } = splitCombo(combo);
+  return MOUSE_WHEEL_KEYS.has(key);
 }
 
 /** The raw AHK key name `KeyWait` expects for this combo's final key (ignores modifiers, same as a standalone tap). */
