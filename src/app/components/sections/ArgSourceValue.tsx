@@ -38,7 +38,7 @@ export default function ArgSourceValue({
             {t("stepArgsFields.modifierLabel", "Modificador")}
           </label>
           <select
-            className="bg-menu-secondary/70 rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none font-mono"
+            className="bg-menu-secondary/70 rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none font-mono select-compact"
             value={modifier?.op ?? ""}
             onChange={(e) =>
               onChange(

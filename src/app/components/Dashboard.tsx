@@ -272,8 +272,8 @@ export default function Dashboard() {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="min-w-full h-6 bg-menu-dark flex items-center justify-between">
-        <div>
+      <div className="min-w-full h-6 shrink-0 bg-menu-dark flex items-center justify-between">
+        <div className="shrink-0 flex items-center h-full">
           <button
             className="button-topbar"
             onClick={handleSave}
@@ -296,12 +296,16 @@ export default function Dashboard() {
             onClick={handleLoad}
             title={t("dashboard.loadTooltip", "Carrega um script .ahk gerado por este app")}
           >
-            Load
+            {t("dashboard.load", "Carregar")}
           </button>
         </div>
-        <div className="flex items-center gap-2">
-          {saveStatus && <span className="text-xs px-3 opacity-70">{saveStatus}</span>}
-          <div className="flex gap-1 bg-menu-secondary rounded-md p-0.5 text-xs mr-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {saveStatus && (
+            <span className="text-xs px-3 opacity-70 min-w-0 truncate" title={saveStatus}>
+              {saveStatus}
+            </span>
+          )}
+          <div className="flex gap-1 shrink-0 bg-menu-secondary rounded-md p-0.5 text-xs mr-2">
             <button
               type="button"
               className={`px-2 py-0.5 rounded outline-none focus:outline-none cursor-pointer ${

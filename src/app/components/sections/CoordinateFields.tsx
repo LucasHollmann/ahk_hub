@@ -145,7 +145,9 @@ export function CoordinateValueFields({
       {hasCandidates && (
         <div className="flex justify-end">
           <select
-            className="bg-menu-secondary rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none"
+            className="bg-menu-secondary rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none select-compact"
+            aria-label={t("stepArgsFields.sourceLabel", "Origem do valor")}
+            title={t("stepArgsFields.sourceLabel", "Origem do valor")}
             value={selection}
             onChange={(e) => applySelection(e.target.value)}
           >

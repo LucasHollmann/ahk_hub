@@ -59,7 +59,7 @@ export default function ConditionsEditor({
             {(allowEmpty || conditions.length > 1) && (
               <button
                 type="button"
-                className="button-secondary shrink-0 px-2 py-1 text-xs"
+                className="button-secondary button-compact shrink-0 px-2 py-1 text-xs"
                 onClick={() => onChange((previous) => previous.filter((_, conditionIndex) => conditionIndex !== index))}
               >
                 {t("functionsSection.conditionRemove", "Remover")}
@@ -70,7 +70,7 @@ export default function ConditionsEditor({
       ))}
       <button
         type="button"
-        className="button-secondary self-start px-2.5 py-1.5 text-xs"
+        className="button-secondary button-compact self-start px-2.5 py-1.5 text-xs"
         onClick={() => onChange((previous) => [...previous, { kind: "code", code: "" }])}
       >
         {t("functionsSection.conditionAdd", "Adicionar condição")}

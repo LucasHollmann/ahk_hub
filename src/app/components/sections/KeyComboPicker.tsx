@@ -211,14 +211,19 @@ export default function KeyComboPicker({ resetSignal, onChange, initialValue }: 
       <div className="relative" ref={modifierMenuRef}>
         <button
           type="button"
-          className="bg-menu-secondary rounded-lg px-3 py-2 text-sm text-left w-44 h-10 outline-none focus:outline-none cursor-pointer"
+          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 text-sm text-left w-44 h-9 outline-none focus:outline-none cursor-pointer flex items-center justify-between gap-2"
           onClick={() => setIsModifierMenuOpen((prev) => !prev)}
         >
-          {MODIFIERS.filter((m) => modifiers[m]).join("+") ||
-            t("keyCombo.noModifiers", "Sem modificadores")}
+          <span className="truncate">
+            {MODIFIERS.filter((m) => modifiers[m]).join("+") ||
+              t("keyCombo.noModifiers", "Sem modificadores")}
+          </span>
+          <svg viewBox="0 0 16 16" className="w-3 h-3 opacity-60 shrink-0" fill="none" stroke="currentColor">
+            <path d="M4 6l4 4 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
         {isModifierMenuOpen && (
-          <div className="absolute z-10 mt-1 w-44 bg-menu-secondary rounded-lg shadow-lg p-2 flex flex-col gap-1">
+          <div className="absolute z-30 mt-1 w-44 bg-menu-secondary rounded-lg shadow-lg p-2 flex flex-col gap-1">
             {MODIFIERS.map((modifier) => (
               <label
                 key={modifier}
@@ -253,7 +258,10 @@ export default function KeyComboPicker({ resetSignal, onChange, initialValue }: 
       </div>
       <input
         ref={keyInputRef}
-        className="bg-menu-secondary rounded-lg px-3 py-2 outline-none cursor-pointer caret-transparent w-40 h-10"
+        className={`bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer caret-transparent w-40 h-9 text-sm ${
+          isCapturing ? "opacity-60 italic" : ""
+        }`}
+        title={t("keyCombo.placeholder", "Clique e pressione a tecla")}
         value={
           isCapturing
             ? t("keyCombo.pressingKey", "Pressione uma tecla...")
@@ -268,17 +276,20 @@ export default function KeyComboPicker({ resetSignal, onChange, initialValue }: 
       <div className="relative" ref={mouseMenuRef}>
         <button
           type="button"
-          className="bg-menu-secondary rounded-lg px-3 py-2 text-sm h-10 outline-none focus:outline-none cursor-pointer"
+          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 text-sm h-9 outline-none focus:outline-none cursor-pointer flex items-center gap-1.5"
           onClick={() => {
             setIsCapturing(false);
             setIsMouseMenuOpen((previous) => !previous);
           }}
         >
           {t("keyCombo.mouseButton", "Mouse")}
+          <svg viewBox="0 0 16 16" className="w-3 h-3 opacity-60 shrink-0" fill="none" stroke="currentColor">
+            <path d="M4 6l4 4 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
         {isMouseMenuOpen && (
-          <div className="absolute left-0 z-10 mt-1 w-52 max-h-72 overflow-auto bg-menu-secondary rounded-lg shadow-lg p-2 flex flex-col gap-1">
-            <span className="px-1 py-1 text-[11px] font-semibold uppercase opacity-50">
+          <div className="absolute left-0 z-30 mt-1 w-52 max-h-72 overflow-auto bg-menu-secondary rounded-lg shadow-lg p-2 flex flex-col gap-1">
+            <span className="px-1 py-1 text-[11px] font-semibold uppercase opacity-70">
               {t("keyCombo.mouseButtonsGroup", "Botões")}
             </span>
             {MOUSE_ACTIONS.filter((action) => action.group === "button").map((action) => (
@@ -291,7 +302,7 @@ export default function KeyComboPicker({ resetSignal, onChange, initialValue }: 
                 {t(action.labelKey, action.label)}
               </button>
             ))}
-            <span className="px-1 py-1 text-[11px] font-semibold uppercase opacity-50">
+            <span className="px-1 py-1 text-[11px] font-semibold uppercase opacity-70">
               {t("keyCombo.mouseWheelGroup", "Roda")}
             </span>
             {MOUSE_ACTIONS.filter((action) => action.group === "wheel").map((action) => (

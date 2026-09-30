@@ -67,10 +67,10 @@ export function FunctionPickerPopup({ items, value, onSelect, onClose }: PopupPr
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50" onMouseDown={onClose}>
       <div
-        className="bg-menu-dark rounded-lg shadow-lg flex flex-col w-full max-w-4xl max-h-[85vh]"
+        className="bg-menu-dark rounded-lg shadow-lg flex flex-col w-full max-w-4xl max-h-[85vh] overflow-hidden"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="p-3 border-b border-white/10">
+        <div className="p-3 border-b border-white/10 shrink-0">
           <input
             className="bg-menu-secondary rounded-lg px-3 py-2 outline-none w-full text-sm"
             value={search}
@@ -86,7 +86,7 @@ export function FunctionPickerPopup({ items, value, onSelect, onClose }: PopupPr
           </p>
         ) : (
           <div
-            className="grid gap-2 p-2 overflow-y-auto"
+            className="grid gap-2 p-2 overflow-y-auto min-h-0"
             style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
           >
             {groups.map(([group, groupItems], index) => {
@@ -137,9 +137,23 @@ type Props = {
   onChange: (value: string) => void;
   placeholder: string;
   className?: string;
+  /**
+   * "target" is for the picker that chooses which function a step/remapping runs. It is
+   * deliberately unlike the parameter fields it sits above, so it doesn't read as one of
+   * them. "field" is the ordinary form-control look, used where the picker really is
+   * choosing a value (the condition kind, for instance).
+   */
+  tone?: "field" | "target";
 };
 
-export default function FunctionPicker({ items, value, onChange, placeholder, className }: Props) {
+export default function FunctionPicker({
+  items,
+  value,
+  onChange,
+  placeholder,
+  className,
+  tone = "field",
+}: Props) {
   const [isOpen, setIsOpen] = useState(false);
 
   const selected = items.find((i) => i.value === value);
@@ -153,13 +167,23 @@ export default function FunctionPicker({ items, value, onChange, placeholder, cl
     <>
       <button
         type="button"
-        className={`bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 text-sm text-left flex items-center justify-between gap-2 ${className ?? ""}`}
+        className={`outline-none cursor-pointer text-left flex items-center justify-between gap-2 ${
+          tone === "target"
+            ? "picker-target px-3 py-2 h-10 text-sm font-semibold"
+            : "bg-menu-secondary rounded-lg px-2.5 py-1.5 h-9 text-sm"
+        } ${className ?? ""}`}
         onClick={() => setIsOpen(true)}
       >
-        <span className={`truncate ${selected ? "" : "opacity-60"}`}>{selected?.label ?? placeholder}</span>
-        <svg viewBox="0 0 16 16" className="w-3 h-3 opacity-60 shrink-0" fill="none" stroke="currentColor">
-          <path d="M4 6l4 4 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <span className={`truncate ${selected ? "" : "opacity-60 font-normal"}`}>
+          {selected?.label ?? placeholder}
+        </span>
+        {/* Only the field variant gets a caret. The target variant opens the full picker
+            dialog, not a dropdown list, so a caret would promise the wrong interaction. */}
+        {tone === "field" && (
+          <svg viewBox="0 0 16 16" className="w-3 h-3 opacity-60 shrink-0" fill="none" stroke="currentColor">
+            <path d="M4 6l4 4 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
       </button>
 
       {isOpen && (

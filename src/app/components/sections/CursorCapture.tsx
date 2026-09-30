@@ -140,7 +140,7 @@ export default function CursorCaptureButton({
     <>
       <button
         type="button"
-        className="button-secondary text-xs py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="button-secondary button-compact text-xs py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
         disabled={desktopOnly && !isDesktop}
         onClick={() => {
           setNote(null);
@@ -153,7 +153,7 @@ export default function CursorCaptureButton({
             : t("paramsFields.capturingBrowser", "Clique em qualquer ponto da tela...")
           : idleLabel}
       </button>
-      <p className="text-xs opacity-50">
+      <p className="text-xs opacity-70">
         {!isDesktop && desktopOnly
           ? t(
               "paramsFields.helpBrowserDesktopOnly",

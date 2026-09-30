@@ -1,6 +1,22 @@
 @import "tailwindcss";
 
+/**
+ * Exposes --menu-secondary to Tailwind's color utilities. Without this the
+ * `bg-menu-secondary/40` variants used across the app compile to nothing —
+ * the slash modifier only works on colors Tailwind itself knows about, not on
+ * hand-written classes — so every grouping card rendered with no background.
+ * `inline` keeps the generated utility pointing at the :root variable below
+ * instead of snapshotting a second copy of its value.
+ */
+@theme inline {
+  --color-menu-secondary: var(--menu-secondary);
+}
+
 :root {
+  /* Paints the browser's own chrome — select popups, number spinners, color
+     pickers — dark, so it stops clashing with the app's palette. */
+  color-scheme: dark;
+
   --background: #0f1117;
   --foreground: #e7e9f0;
   --menu-secondary: #1c1f2b;
@@ -46,78 +62,188 @@ body {
   background-clip: padding-box;
 }
 
-.button-main {
-  background: linear-gradient(135deg, var(--main), var(--main-gradient));
-  box-shadow: 0 4px 5px color-mix(in srgb, var(--dark) 50%, transparent);
-  color: white;
-  border-radius: 1rem;
-  padding: 10px 20px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: 16px;
-  cursor: pointer;
-  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+/**
+ * These live in @layer components on purpose: unlayered rules outrank every
+ * Tailwind utility, so outside a layer `.button-secondary`'s own padding and
+ * font-size silently beat the `py-1 px-3 text-sm` written next to it at the
+ * call site — and `disabled:cursor-not-allowed` never applied either. Layered,
+ * each call site's utilities win, which is what every one of them expects.
+ */
+@layer components {
+  .button-main {
+    background: linear-gradient(135deg, var(--main), var(--main-gradient));
+    box-shadow: 0 4px 5px color-mix(in srgb, var(--dark) 50%, transparent);
+    color: white;
+    /* Transparent, only so the border box matches .button-secondary — otherwise
+       swapping between the two (the tab row) shifts the layout by 2px. */
+    border: 1px solid transparent;
+    border-radius: 1rem;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+  }
+
+  .button-main:hover {
+    box-shadow: 0 6px 10px color-mix(in srgb, var(--main) 60%, transparent);
+    filter: brightness(1.08);
+    transform: translateY(-2px);
+  }
+
+  .button-secondary {
+    background: linear-gradient(135deg, var(--secondary), var(--secondary-gradient));
+    box-shadow: 0 4px 5px color-mix(in srgb, var(--dark) 40%, transparent);
+    color: var(--foreground);
+    border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+    border-radius: 1rem;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+  }
+
+  .button-secondary:hover {
+    box-shadow: 0 6px 10px color-mix(in srgb, var(--dark) 50%, transparent);
+    filter: brightness(1.15);
+    transform: translateY(-2px);
+  }
+
+  /**
+   * For the small buttons sitting inside list rows. At ~22px tall the 1rem
+   * radius reads as a pill and the hover lift makes whole rows jump, so both
+   * are dropped; the size itself still comes from the call site's utilities.
+   */
+  .button-compact {
+    border-radius: 0.5rem;
+    box-shadow: none;
+  }
+
+  .button-compact:hover {
+    box-shadow: none;
+    transform: none;
+  }
+
+  .bg-default {
+    background-color: var(--background);
+  }
+
+  .bg-menu-secondary {
+    background-color: var(--menu-secondary);
+  }
+
+  .bg-menu-dark {
+    background-color: var(--menu-dark);
+  }
+
+  .button-topbar {
+    background: transparent;
+    color: var(--foreground);
+    border-radius: 0.25rem;
+    height: 100%;
+    padding: 0 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  .button-topbar:hover {
+    background-color: color-mix(in srgb, var(--light) 10%, transparent);
+    color: var(--main);
+  }
+
+  .button-topbar:active {
+    background-color: color-mix(in srgb, var(--light) 18%, transparent);
+  }
+
+  /**
+   * The control that picks WHICH function a step runs. It sits directly above that
+   * function's parameter fields and used to be styled identically to them, so it read
+   * as just another parameter. The accent tint and border mark it as the thing the
+   * parameters below belong to.
+   */
+  .picker-target {
+    background: color-mix(in srgb, var(--main) 12%, var(--menu-secondary));
+    border: 1px solid color-mix(in srgb, var(--main) 38%, transparent);
+    border-radius: 0.5rem;
+    transition: background-color 150ms ease, border-color 150ms ease;
+  }
+
+  .picker-target:hover {
+    background: color-mix(in srgb, var(--main) 18%, var(--menu-secondary));
+    border-color: color-mix(in srgb, var(--main) 60%, transparent);
+  }
+
+  /* Gives "nothing here yet" its own shape, so it reads as an empty list
+     rather than as a panel that failed to render. */
+  .empty-state {
+    border: 1px dashed color-mix(in srgb, var(--foreground) 12%, transparent);
+    border-radius: 0.5rem;
+    padding: 1.25rem 0.75rem;
+    text-align: center;
+    font-size: 0.875rem;
+    opacity: 0.6;
+  }
 }
 
-.button-main:hover {
-  box-shadow: 0 6px 10px color-mix(in srgb, var(--main) 60%, transparent);
-  filter: brightness(1.08);
-  transform: translateY(-2px);
+/**
+ * Native control chrome. Deliberately unlayered so it overrides the utilities
+ * at the call sites (`appearance-none` strips the arrow; the padding-right
+ * below makes room for the one drawn back in).
+ */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23e7e9f0' stroke-opacity='.6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 0.75rem 0.75rem;
+  padding-right: 1.9rem;
 }
 
-.button-secondary {
-  background: linear-gradient(135deg, var(--secondary), var(--secondary-gradient));
-  box-shadow: 0 4px 5px color-mix(in srgb, var(--dark) 40%, transparent);
-  color: var(--foreground);
-  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
-  border-radius: 1rem;
-  padding: 10px 20px;
-  text-align: center;
-  text-decoration: none;
-  font-size: 16px;
-  cursor: pointer;
-  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+/* The text-xs selects tucked into a field's corner, where the full-size arrow
+   and its gutter would crowd the value out. */
+select.select-compact {
+  background-position: right 0.35rem center;
+  background-size: 0.65rem 0.65rem;
+  padding-right: 1.35rem;
 }
 
-.button-secondary:hover {
-  box-shadow: 0 6px 10px color-mix(in srgb, var(--dark) 50%, transparent);
-  filter: brightness(1.15);
-  transform: translateY(-2px);
+input[type="color"] {
+  padding: 0;
+  overflow: hidden;
 }
 
-.bg-default {
-  background-color: var(--background);
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: inherit;
 }
 
-.bg-menu-secondary {
-  background-color: var(--menu-secondary);
-}
-
-.bg-menu-dark {
-  background-color: var(--menu-dark);
-}
-
-.button-topbar {
-  background: transparent;
-  color: var(--foreground);
-  border-radius: 0.25rem;
-  height: 100%;
-  padding: 0 10px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: 14px;
-  cursor: pointer;
+input[type="color"]::-webkit-color-swatch {
   border: none;
-  transition: background-color 150ms ease, color 150ms ease;
+  border-radius: inherit;
 }
 
-.button-topbar:hover {
-  background-color: color-mix(in srgb, var(--light) 10%, transparent);
-  color: var(--main);
+input[type="range"] {
+  accent-color: var(--main);
 }
 
-.button-topbar:active {
-  background-color: color-mix(in srgb, var(--light) 18%, transparent);
+/**
+ * Every field in the app carries `outline-none`, which left keyboard users with
+ * no focus indication at all. `:focus-visible` restores it for keyboard focus
+ * only, so nothing changes for pointer users.
+ */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--main);
+  outline-offset: 2px;
 }

@@ -112,28 +112,30 @@ function RemappingItem({
   return (
     <div className="bg-menu-secondary rounded-lg px-4 py-2 flex flex-col gap-1">
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2">
-          {remapping.from} → {destinationLabel(remapping, t)}
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="truncate" title={`${remapping.from} → ${destinationLabel(remapping, t)}`}>
+            {remapping.from} → {destinationLabel(remapping, t)}
+          </span>
           {sourceTriggerTagLabel(remapping, t) && (
-            <span className="text-[11px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/10 opacity-70">
+            <span className="text-[11px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/10 opacity-70 shrink-0">
               {sourceTriggerTagLabel(remapping, t)}
             </span>
           )}
           {conditionTagLabel(remapping, t) && (
-            <span className="text-[11px] px-1.5 py-0.5 rounded bg-white/10 opacity-70">
+            <span className="text-[11px] px-1.5 py-0.5 rounded bg-white/10 opacity-70 shrink-0">
               {conditionTagLabel(remapping, t)}
             </span>
           )}
         </span>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <button
-            className="button-secondary py-1 px-3 text-sm"
+            className="button-secondary button-compact py-1 px-3 text-sm"
             onClick={() => onEdit(remapping)}
           >
             {t("remappings.edit", "Editar")}
           </button>
           <button
-            className="button-secondary py-1 px-3 text-sm"
+            className="button-secondary button-compact py-1 px-3 text-sm"
             onClick={() => onRemove(remapping.id)}
           >
             {t("remappings.remove", "Remover")}
@@ -353,129 +355,132 @@ export default function RemappingsSection({
           onMouseDown={closeForm}
         >
           <div
-            className="bg-menu-dark rounded-lg shadow-lg p-4 flex flex-col gap-3"
+            className="bg-menu-dark rounded-lg shadow-lg flex flex-col max-h-[85vh] overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <span className="text-sm font-semibold">
+            <h2 className="shrink-0 px-4 pt-4 pb-3 border-b border-white/10 text-base font-semibold">
               {editingId !== null
                 ? t("remappings.editTitle", "Editar remapeamento")
                 : t("remappings.newTitle", "Novo remapeamento")}
-            </span>
+            </h2>
+            <div className="flex flex-col gap-3 p-4 min-h-0 overflow-y-auto">
+              <div className="flex gap-2 items-end">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm">{t("remappings.sourceKey", "Tecla ou ação de origem")}</label>
+                  <KeyComboPicker
+                    resetSignal={resetSignal}
+                    initialValue={fromInitialValue}
+                    onChange={setFrom}
+                  />
+                </div>
 
-            <div className="flex gap-2 items-end">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm">{t("remappings.sourceKey", "Tecla ou ação de origem")}</label>
-                <KeyComboPicker
-                  resetSignal={resetSignal}
-                  initialValue={fromInitialValue}
-                  onChange={setFrom}
-                />
+                <span className="pb-2 opacity-60">→</span>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm">
+                    {t("remappings.destFunction", "Função de destino")}
+                  </label>
+
+                  <FunctionPicker
+                    items={toFunctionPickerItems}
+                    value={toFunction}
+                    onChange={setToFunction}
+                    placeholder={t("remappings.selectFunction", "Selecione uma função")}
+                    tone="target"
+                    className="w-56"
+                  />
+                </div>
               </div>
 
-              <span className="pb-2 opacity-60">→</span>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm">
-                  {t("remappings.destFunction", "Função de destino")}
-                </label>
-
-                <FunctionPicker
-                  items={toFunctionPickerItems}
-                  value={toFunction}
-                  onChange={setToFunction}
-                  placeholder={t("remappings.selectFunction", "Selecione uma função")}
-                  className="w-56"
-                />
-              </div>
-            </div>
-
-            <ConditionsEditor
-              conditions={conditions}
-              onChange={setConditions}
-              headerParams={[]}
-              localVariables={[]}
-              globalVariables={conditionGlobalVariables}
-              allowEmpty
-            />
-
-            {isMouseWheelHotkey(from) ? (
-              <span className="text-xs opacity-60">
-                {t("remappings.mouseWheelTriggerHint", "Dispara ao girar a roda do mouse.")}
-              </span>
-            ) : (
-            <div className="flex flex-col gap-1">
-              <label className="text-sm">{t("remappings.triggerLabel", "Disparar")}</label>
-              <div className="flex gap-1 bg-menu-secondary rounded-md p-0.5 text-xs w-fit">
-                <button
-                  type="button"
-                  className={`px-2.5 py-1.5 rounded outline-none focus:outline-none cursor-pointer ${
-                    trigger === "full" ? "bg-(--main) text-white" : "opacity-60"
-                  }`}
-                  onClick={() => setTrigger("full")}
-                >
-                  {t("remappings.triggerFull", "Padrão")}
-                </button>
-                <button
-                  type="button"
-                  className={`px-2.5 py-1.5 rounded outline-none focus:outline-none cursor-pointer ${
-                    trigger === "down" ? "bg-(--main) text-white" : "opacity-60"
-                  }`}
-                  onClick={() => setTrigger("down")}
-                >
-                  {t("remappings.triggerDown", "Ao pressionar")}
-                </button>
-                <button
-                  type="button"
-                  className={`px-2.5 py-1.5 rounded outline-none focus:outline-none cursor-pointer ${
-                    trigger === "up" ? "bg-(--main) text-white" : "opacity-60"
-                  }`}
-                  onClick={() => setTrigger("up")}
-                >
-                  {t("remappings.triggerUp", "Ao soltar")}
-                </button>
-              </div>
-              {trigger === "down" && (
-                <span className="text-xs opacity-60">
-                  {t(
-                    "remappings.triggerDownHint",
-                    "Executa uma vez ao pressionar e só permite disparar de novo depois de soltar a tecla."
-                  )}
-                </span>
-              )}
-              {trigger === "full" && (
-                <span className="text-xs opacity-60">
-                  {t(
-                    "remappings.triggerFullHint",
-                    "Remapeamento padrão — dispara ao pressionar e pode repetir se a tecla ficar segurada."
-                  )}
-                </span>
-              )}
-            </div>
-            )}
-
-            {selectedBuiltin && selectedBuiltin.params.length > 0 && (
-              <ParamsFields
-                meta={selectedBuiltin}
-                values={paramValues}
-                onChange={setParamValue}
-                resetSignal={resetSignal}
-              />
-            )}
-
-            {selectedCustomFunction && customCallParams.length > 0 && (
-              <StepArgsFields
-                params={customCallParams}
+              <ConditionsEditor
+                conditions={conditions}
+                onChange={setConditions}
                 headerParams={[]}
-                values={toFunctionArgs}
-                onChange={setToFunctionArg}
-                resetSignal={resetSignal}
-                title={t("paramsFields.title", "Parâmetros de {{name}}", {
-                  name: selectedCustomFunction.name,
-                })}
+                localVariables={[]}
+                globalVariables={conditionGlobalVariables}
+                allowEmpty
               />
-            )}
 
-            <div className="flex gap-2 justify-end">
+              {isMouseWheelHotkey(from) ? (
+                <span className="text-xs opacity-60">
+                  {t("remappings.mouseWheelTriggerHint", "Dispara ao girar a roda do mouse.")}
+                </span>
+              ) : (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm">{t("remappings.triggerLabel", "Disparar")}</label>
+                <div className="flex gap-1 bg-menu-secondary rounded-md p-0.5 text-xs w-fit">
+                  <button
+                    type="button"
+                    className={`px-2.5 py-1.5 rounded outline-none focus:outline-none cursor-pointer ${
+                      trigger === "full" ? "bg-(--main) text-white" : "opacity-60"
+                    }`}
+                    onClick={() => setTrigger("full")}
+                  >
+                    {t("remappings.triggerFull", "Padrão")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-2.5 py-1.5 rounded outline-none focus:outline-none cursor-pointer ${
+                      trigger === "down" ? "bg-(--main) text-white" : "opacity-60"
+                    }`}
+                    onClick={() => setTrigger("down")}
+                  >
+                    {t("remappings.triggerDown", "Ao pressionar")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-2.5 py-1.5 rounded outline-none focus:outline-none cursor-pointer ${
+                      trigger === "up" ? "bg-(--main) text-white" : "opacity-60"
+                    }`}
+                    onClick={() => setTrigger("up")}
+                  >
+                    {t("remappings.triggerUp", "Ao soltar")}
+                  </button>
+                </div>
+                {trigger === "down" && (
+                  <span className="text-xs opacity-60">
+                    {t(
+                      "remappings.triggerDownHint",
+                      "Executa uma vez ao pressionar e só permite disparar de novo depois de soltar a tecla."
+                    )}
+                  </span>
+                )}
+                {trigger === "full" && (
+                  <span className="text-xs opacity-60">
+                    {t(
+                      "remappings.triggerFullHint",
+                      "Remapeamento padrão — dispara ao pressionar e pode repetir se a tecla ficar segurada."
+                    )}
+                  </span>
+                )}
+              </div>
+              )}
+
+              {selectedBuiltin && selectedBuiltin.params.length > 0 && (
+                <ParamsFields
+                  meta={selectedBuiltin}
+                  values={paramValues}
+                  onChange={setParamValue}
+                  resetSignal={resetSignal}
+                />
+              )}
+
+              {selectedCustomFunction && customCallParams.length > 0 && (
+                <StepArgsFields
+                  params={customCallParams}
+                  headerParams={[]}
+                  values={toFunctionArgs}
+                  onChange={setToFunctionArg}
+                  resetSignal={resetSignal}
+                  title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                    name: selectedCustomFunction.name,
+                  })}
+                />
+              )}
+
+            </div>
+
+            <div className="shrink-0 flex gap-2 justify-end px-4 py-3 border-t border-white/10">
               <button className="button-secondary" onClick={closeForm}>
                 {t("remappings.cancel", "Cancelar")}
               </button>
@@ -498,7 +503,7 @@ export default function RemappingsSection({
 
       <div className="flex flex-col gap-2 overflow-auto">
         {remappings.length === 0 && (
-          <p className="opacity-60 text-sm">
+          <p className="empty-state">
             {t("remappings.emptyList", "Nenhum remapeamento cadastrado.")}
           </p>
         )}

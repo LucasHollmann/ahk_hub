@@ -1375,7 +1375,7 @@ export default function StepListEditor({
   return (
     <div className="flex flex-col gap-2">
       {steps.length === 0 ? (
-        <p className="opacity-60 text-xs">{t("functionsSection.emptySteps", "Nenhum passo adicionado ainda.")}</p>
+        <p className="empty-state text-xs py-3">{t("functionsSection.emptySteps", "Nenhum passo adicionado ainda.")}</p>
       ) : (
         <ol className="flex flex-col gap-1">
           {steps.map((step, index) => (
@@ -1397,20 +1397,20 @@ export default function StepListEditor({
                 <span className="opacity-40 select-none" aria-hidden="true">
                   ⠿
                 </span>
-                <span className="font-mono truncate">
+                <span className="font-mono truncate" title={`${index + 1}. ${stepLabel(t, step, functions)}`}>
                   {index + 1}. {stepLabel(t, step, functions)}
                 </span>
               </span>
               <div className="flex gap-1 shrink-0">
                 <button
-                  className="button-secondary py-0.5 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="button-secondary button-compact py-0.5 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={isRecordModalOpen}
                   onClick={() => startEditStep(step)}
                 >
                   {t("functionsSection.edit", "Editar")}
                 </button>
                 <button
-                  className="button-secondary py-0.5 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="button-secondary button-compact py-0.5 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={isRecordModalOpen}
                   onClick={() => removeStep(step.id)}
                 >
@@ -1460,18 +1460,18 @@ export default function StepListEditor({
           className="fixed inset-0 flex items-center justify-center bg-black/50"
           style={{ zIndex: formZ }}
         >
-          <div className="bg-menu-dark rounded-lg shadow-lg p-4 flex flex-col gap-3 w-full max-w-lg max-h-[85vh] overflow-auto">
-            <div className="flex items-center gap-2">
+          <div className="bg-menu-dark rounded-lg shadow-lg p-4 flex flex-col gap-3 w-full max-w-lg max-h-[85vh] overflow-hidden">
+            <div className="flex items-center gap-2 pb-2 border-b border-white/10">
               <span
                 className={`w-2.5 h-2.5 rounded-full ${
                   isCapturing ? "bg-red-500 animate-pulse" : "bg-gray-500"
                 }`}
               />
-              <span className="text-sm font-semibold">
+              <h2 className="text-base font-semibold">
                 {isCapturing
                   ? t("functionsSection.recordingTitle", "Gravando comandos...")
                   : t("functionsSection.recordingPausedTitle", "Gravação pausada")}
-              </span>
+              </h2>
             </div>
 
             <div className="flex flex-col gap-2 bg-menu-secondary/40 rounded-lg p-3">
@@ -1503,7 +1503,7 @@ export default function StepListEditor({
 
             <button
               type="button"
-              className={`flex items-center gap-1.5 justify-center text-sm rounded-lg px-3 py-1.5 cursor-pointer ${
+              className={`flex items-center gap-1.5 justify-center text-sm rounded-lg border border-transparent px-3 py-1.5 cursor-pointer ${
                 isCapturing ? "bg-red-500/80 hover:bg-red-500 text-white" : "button-main"
               }`}
               onClick={isCapturing ? pauseCapturing : startCapturing}
@@ -1523,18 +1523,20 @@ export default function StepListEditor({
                 )}
               </p>
             ) : (
-              <StepListEditor
-                steps={stagedSteps}
-                onChange={setStagedSteps}
-                functions={functions}
-                headerParams={headerParams}
-                localVariables={localVariables}
-                globalVariables={globalVariables}
-                guiVariables={guiVariables}
-                radialVariables={radialVariables}
-                nextStepIdRef={nextStepIdRef}
-                depth={depth + 1}
-              />
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <StepListEditor
+                  steps={stagedSteps}
+                  onChange={setStagedSteps}
+                  functions={functions}
+                  headerParams={headerParams}
+                  localVariables={localVariables}
+                  globalVariables={globalVariables}
+                  guiVariables={guiVariables}
+                  radialVariables={radialVariables}
+                  nextStepIdRef={nextStepIdRef}
+                  depth={depth + 1}
+                />
+              </div>
             )}
 
             <div className="flex gap-2 justify-end">
@@ -1569,458 +1571,454 @@ export default function StepListEditor({
           onMouseDown={closeStepForm}
         >
           <div
-            className="bg-menu-dark rounded-lg shadow-lg p-4 flex flex-col gap-3 w-full max-w-lg max-h-[85vh] overflow-auto"
+            className="bg-menu-dark rounded-lg shadow-lg flex flex-col w-full max-w-lg max-h-[85vh] overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <span className="text-sm font-semibold">
+            <h2 className="shrink-0 px-4 pt-4 pb-3 border-b border-white/10 text-base font-semibold">
               {editingStepId !== null
                 ? t("functionsSection.editStepTitle", "Editar passo")
                 : t("functionsSection.newStepTitle", "Novo passo")}
-            </span>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs opacity-70">
-                  {t("functionsSection.selectStepFunction", "Selecione uma função")}
-                </label>
+            </h2>
+            <div className="flex flex-col gap-3 p-4 min-h-0 overflow-y-auto">
+              <div className="flex flex-col gap-3">
                 <FunctionPicker
                   items={stepPickerItems}
                   value={stepSelection}
                   onChange={selectStep}
                   placeholder={t("functionsSection.selectStepFunction", "Selecione uma função")}
+                  tone="target"
                   className="w-full"
                 />
-              </div>
 
-              {stepBuiltin && stepBuiltin.params.length > 0 && (
-                <StepArgsFields
-                  targetId={stepBuiltin.id}
-                  params={stepBuiltin.params}
-                  headerParams={headerParams}
-                  localVariables={localVariables}
-                  globalVariables={globalVariables}
-                  values={stepBuiltinArgs}
-                  onChange={setStepBuiltinArg}
-                  resetSignal={stepResetSignal}
-                  title={t("paramsFields.title", "Parâmetros de {{name}}", {
-                    name: tFunctionName(t, stepBuiltin),
-                  })}
-                />
-              )}
-
-              {stepFunctionTarget && stepFunctionCallParams.length > 0 && (
-                <StepArgsFields
-                  params={stepFunctionCallParams}
-                  headerParams={headerParams}
-                  localVariables={localVariables}
-                  globalVariables={globalVariables}
-                  values={stepFunctionArgs}
-                  onChange={setStepFunctionArg}
-                  resetSignal={stepResetSignal}
-                  title={t("paramsFields.title", "Parâmetros de {{name}}", {
-                    name: stepFunctionTarget.name,
-                  })}
-                />
-              )}
-
-              {stepVarAction && (
-                <div className="flex flex-col gap-2 bg-menu-secondary/40 rounded-lg p-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs opacity-70">
-                      {stepVarAction === "create"
-                        ? t("functionsSection.varActionNewNameLabel", "Nome da nova variável")
-                        : t("functionsSection.varActionTargetLabel", "Variável")}
-                    </label>
-                    {stepVarAction === "create" ? (
-                      <>
-                        <input
-                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                          value={stepVarTargetName}
-                          onChange={(e) => setStepVarTargetName(e.target.value)}
-                          placeholder={t("variablesSection.namePlaceholder", "Ex: contador")}
-                        />
-                        {trimmedVarTargetName !== "" && !isValidAhkIdentifier(trimmedVarTargetName) && (
-                          <span className="text-xs text-red-400">
-                            {t(
-                              "functionsSection.invalidName",
-                              "Nome inválido: use apenas letras, números e _, sem começar com número."
-                            )}
-                          </span>
-                        )}
-                      </>
-                    ) : localVarTargets.length === 0 && globalVarTargets.length === 0 ? (
-                      <p className="opacity-60 text-xs">
-                        {t(
-                          "functionsSection.noVariablesAvailable",
-                          "Nenhuma variável disponível — crie uma primeiro."
-                        )}
-                      </p>
-                    ) : (
-                      <select
-                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 w-full text-sm appearance-none"
-                        value={stepVarTargetName}
-                        onChange={(e) => selectVarTarget(e.target.value)}
-                      >
-                        <option value="">
-                          {t("functionsSection.selectVariablePlaceholder", "Selecione uma variável")}
-                        </option>
-                        {localVarTargets.length > 0 && (
-                          <optgroup label={t("stepArgsFields.groupLocalVariables", "Variáveis locais")}>
-                            {localVarTargets.map((v) => (
-                              <option key={v.key} value={v.key}>
-                                {v.label}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {globalVarTargets.length > 0 && (
-                          <optgroup label={t("stepArgsFields.groupGlobalVariables", "Variáveis globais")}>
-                            {globalVarTargets.map((v) => (
-                              <option key={v.key} value={v.key}>
-                                {v.label}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </select>
-                    )}
-                  </div>
-
-                  {stepVarAction === "set" && isCoordinateVarTarget && (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs opacity-70">
-                        {t("functionsSection.varActionValueLabel", "Novo valor")}
-                      </label>
-                      <CoordinateValueFields
-                        value={
-                          stepVarSetValue.kind === "coordinate"
-                            ? stepVarSetValue
-                            : EMPTY_COORDINATE_ASSIGNMENT
-                        }
-                        onChange={setStepVarSetValue}
-                        headerParams={headerParams}
-                        localVariables={localVariables}
-                        globalVariables={globalVariables}
-                      />
-                    </div>
-                  )}
-
-                  {stepVarAction === "set" && !isCoordinateVarTarget && (
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <label className="text-xs opacity-70">
-                          {t("functionsSection.varActionValueLabel", "Novo valor")}
-                        </label>
-                        {(headerParams.length > 0 || localVariables.length > 0 || globalVariables.length > 0) && (
-                          <select
-                            className="bg-menu-secondary rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none"
-                            value={varSourceSelectValue()}
-                            onChange={(e) => setVarSourceSelection(e.target.value)}
-                          >
-                            <option value="">{t("stepArgsFields.fixedValue", "Valor fixo")}</option>
-                            {headerParams.length > 0 && (
-                              <optgroup label={t("stepArgsFields.groupHeaderParams", "Parâmetros do cabeçalho")}>
-                                {headerParams.map((p) => (
-                                  <option key={`header:${p.key}`} value={`header:${p.key}`}>
-                                    {p.label}
-                                  </option>
-                                ))}
-                              </optgroup>
-                            )}
-                            {localVariables.length > 0 && (
-                              <optgroup label={t("stepArgsFields.groupLocalVariables", "Variáveis locais")}>
-                                {localVariables.map((v) => (
-                                  <option key={`local:${v.key}`} value={`local:${v.key}`}>
-                                    {v.label}
-                                  </option>
-                                ))}
-                              </optgroup>
-                            )}
-                            {globalVariables.length > 0 && (
-                              <optgroup label={t("stepArgsFields.groupGlobalVariables", "Variáveis globais")}>
-                                {globalVariables.map((v) => (
-                                  <option key={`global:${v.key}`} value={`global:${v.key}`}>
-                                    {v.label}
-                                  </option>
-                                ))}
-                              </optgroup>
-                            )}
-                          </select>
-                        )}
-                      </div>
-                      {stepVarSetValue.kind === "literal" ? (
-                        <input
-                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                          value={String(stepVarSetValue.value ?? "")}
-                          onChange={(e) => setStepVarSetValue({ kind: "literal", value: e.target.value })}
-                        />
-                      ) : stepVarSetValue.kind === "coordinate" ? null : (
-                        <ArgSourceValue
-                          arg={stepVarSetValue}
-                          label={t("functionsSection.varActionUsingSource", 'Usando "{{name}}"', {
-                            name:
-                              stepVarSetValue.kind === "headerParam"
-                                ? stepVarSetValue.paramKey
-                                : stepVarSetValue.variableName,
-                          })}
-                          onChange={setStepVarSetValue}
-                        />
-                      )}
-                    </div>
-                  )}
-
-                  {stepVarAction === "increment" && (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs opacity-70">
-                        {t("functionsSection.varActionAmountLabel", "Quantidade (pode ser negativa)")}
-                      </label>
-                      <input
-                        type="number"
-                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                        value={stepVarIncrementAmount}
-                        onChange={(e) => setStepVarIncrementAmount(Number(e.target.value))}
-                      />
-                    </div>
-                  )}
-
-                  {stepVarAction === "create" && (
-                    <>
-                      <div className="flex gap-2">
-                        <div className="flex flex-col gap-1 flex-1">
-                          <label className="text-xs opacity-70">
-                            {t("variablesSection.typeLabel", "Tipo")}
-                          </label>
-                          <select
-                            className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 text-sm appearance-none"
-                            value={stepVarCreateType}
-                            onChange={(e) => {
-                              const nextType = e.target.value as VariableType;
-                              setStepVarCreateType(nextType);
-                              setStepVarCreateInitialValue(defaultVariableValue(nextType));
-                            }}
-                          >
-                            <option value="text">{t("functionsSection.paramTypeText", "Texto")}</option>
-                            <option value="number">{t("functionsSection.paramTypeNumber", "Número")}</option>
-                            <option value="boolean">{t("functionsSection.paramTypeBoolean", "Booleano")}</option>
-                            <option value="array">{t("functionsSection.paramTypeArray", "Array")}</option>
-                            <option value="coordinate">
-                              {t("functionsSection.paramTypeCoordinate", "Coordenada na tela")}
-                            </option>
-                          </select>
-                        </div>
-                        {stepVarCreateType !== "array" && stepVarCreateType !== "coordinate" && (
-                          <div className="flex flex-col gap-1 flex-1">
-                            <label className="text-xs opacity-70">
-                              {t("variablesSection.initialValueLabel", "Valor inicial")}
-                            </label>
-                            {stepVarCreateType === "boolean" ? (
-                              <label className="flex items-center gap-2 text-sm cursor-pointer select-none h-9">
-                                <input
-                                  type="checkbox"
-                                  className="w-4 h-4"
-                                  checked={Boolean(stepVarCreateInitialValue)}
-                                  onChange={(e) => setStepVarCreateInitialValue(e.target.checked)}
-                                />
-                                {t("variablesSection.trueLabel", "Verdadeiro")}
-                              </label>
-                            ) : (
-                              <input
-                                type={stepVarCreateType === "number" ? "number" : "text"}
-                                className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                                value={String(stepVarCreateInitialValue)}
-                                onChange={(e) =>
-                                  setStepVarCreateInitialValue(
-                                    stepVarCreateType === "number" ? Number(e.target.value) : e.target.value
-                                  )
-                                }
-                              />
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {stepVarCreateType === "coordinate" && (
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs opacity-70">
-                            {t("variablesSection.initialValueLabel", "Valor inicial")}
-                          </label>
-                          <CoordinateLiteralFields
-                            value={toCoordinateLiteral(stepVarCreateInitialValue)}
-                            onChange={setStepVarCreateInitialValue}
-                          />
-                        </div>
-                      )}
-
-                      {stepVarCreateType === "array" && (
-                        <div className="flex flex-col gap-1.5 bg-menu-secondary/60 rounded-lg p-2">
-                          <span className="text-xs opacity-70">
-                            {t("variablesSection.arrayItemsLabel", "Itens iniciais do array")}
-                          </span>
-                          {Array.isArray(stepVarCreateInitialValue) && stepVarCreateInitialValue.length > 0 && (
-                            <ul className="flex flex-wrap gap-1">
-                              {stepVarCreateInitialValue.map((item, index) => (
-                                <li
-                                  key={`${item}-${index}`}
-                                  className="flex items-center gap-1 bg-menu-secondary rounded px-2 py-1 text-xs"
-                                >
-                                  {item}
-                                  <button
-                                    type="button"
-                                    className="opacity-60 hover:opacity-100 cursor-pointer"
-                                    onClick={() =>
-                                      setStepVarCreateInitialValue((prev) =>
-                                        Array.isArray(prev) ? prev.filter((_, i) => i !== index) : prev
-                                      )
-                                    }
-                                  >
-                                    ×
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          <div className="flex gap-2">
-                            <input
-                              className="bg-menu-secondary rounded-lg px-2 py-1.5 outline-none text-sm flex-1"
-                              value={stepVarArrayNewItem}
-                              onChange={(e) => setStepVarArrayNewItem(e.target.value)}
-                              placeholder={t("functionsSection.paramOptionPlaceholder", "Ex: Rápido")}
-                              onKeyDown={(e) => {
-                                if (e.key !== "Enter") return;
-                                e.preventDefault();
-                                const value = stepVarArrayNewItem.trim();
-                                if (!value) return;
-                                setStepVarCreateInitialValue((prev) =>
-                                  Array.isArray(prev) ? [...prev, value] : [value]
-                                );
-                                setStepVarArrayNewItem("");
-                              }}
-                            />
-                            <button
-                              type="button"
-                              className="button-secondary py-1 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
-                              disabled={!stepVarArrayNewItem.trim()}
-                              onClick={() => {
-                                const value = stepVarArrayNewItem.trim();
-                                if (!value) return;
-                                setStepVarCreateInitialValue((prev) =>
-                                  Array.isArray(prev) ? [...prev, value] : [value]
-                                );
-                                setStepVarArrayNewItem("");
-                              }}
-                            >
-                              {t("functionsSection.addParamOption", "Adicionar opção")}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs opacity-70">
-                          {t("functionsSection.varActionScopeLabel", "Escopo")}
-                        </label>
-                        <div className="flex gap-1 bg-menu-secondary rounded-md p-0.5 text-xs w-fit">
-                          <button
-                            type="button"
-                            className={`px-2 py-1 rounded outline-none focus:outline-none cursor-pointer ${
-                              stepVarCreateScope === "local" ? "bg-(--main) text-white" : "opacity-60"
-                            }`}
-                            onClick={() => setStepVarCreateScope("local")}
-                          >
-                            {t("functionsSection.varActionScopeLocal", "Local")}
-                          </button>
-                          <button
-                            type="button"
-                            className={`px-2 py-1 rounded outline-none focus:outline-none cursor-pointer ${
-                              stepVarCreateScope === "global" ? "bg-(--main) text-white" : "opacity-60"
-                            }`}
-                            onClick={() => setStepVarCreateScope("global")}
-                          >
-                            {t("functionsSection.varActionScopeGlobal", "Global")}
-                          </button>
-                        </div>
-                        {stepVarCreateScope === "global" && (
-                          <span className="text-xs opacity-60">
-                            {t(
-                              "functionsSection.varActionScopeGlobalHint",
-                              "Vai aparecer também na aba Variáveis globais."
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {stepVarAction === "promptInput" && (
-                    <>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs opacity-70">
-                          {t("functionsSection.varActionPromptTitleLabel", "Título da caixa")}
-                        </label>
-                        <input
-                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                          value={stepVarPromptTitle}
-                          onChange={(e) => setStepVarPromptTitle(e.target.value)}
-                          placeholder={t("functionsSection.varActionPromptTitlePlaceholder", "Ex: Nome do arquivo")}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs opacity-70">
-                          {t("functionsSection.varActionPromptTextLabel", "Texto da pergunta")}
-                        </label>
-                        <input
-                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                          value={stepVarPromptText}
-                          onChange={(e) => setStepVarPromptText(e.target.value)}
-                          placeholder={t(
-                            "functionsSection.varActionPromptTextPlaceholder",
-                            "Ex: Digite o nome do arquivo:"
-                          )}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {stepFlowType && (
-                <>
-                  <ConditionsEditor
-                    conditions={stepFlowConditions}
-                    onChange={setStepFlowConditions}
+                {stepBuiltin && stepBuiltin.params.length > 0 && (
+                  <StepArgsFields
+                    targetId={stepBuiltin.id}
+                    params={stepBuiltin.params}
                     headerParams={headerParams}
                     localVariables={localVariables}
                     globalVariables={globalVariables}
+                    values={stepBuiltinArgs}
+                    onChange={setStepBuiltinArg}
+                    resetSignal={stepResetSignal}
+                    title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                      name: tFunctionName(t, stepBuiltin),
+                    })}
                   />
+                )}
 
-                  <div className="flex flex-col gap-1.5 bg-menu-secondary/30 border border-white/10 rounded-lg p-2.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide opacity-60">
-                      {stepFlowType === "loop"
-                        ? t("functionsSection.flowBodyLoopTitle", "Corpo do loop")
-                        : t("functionsSection.flowBodyTitle", "Corpo (se verdadeiro)")}
-                    </span>
-                    <StepListEditor
-                      steps={stepFlowBody}
-                      onChange={setStepFlowBody}
-                      functions={functions}
+                {stepFunctionTarget && stepFunctionCallParams.length > 0 && (
+                  <StepArgsFields
+                    params={stepFunctionCallParams}
+                    headerParams={headerParams}
+                    localVariables={localVariables}
+                    globalVariables={globalVariables}
+                    values={stepFunctionArgs}
+                    onChange={setStepFunctionArg}
+                    resetSignal={stepResetSignal}
+                    title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                      name: stepFunctionTarget.name,
+                    })}
+                  />
+                )}
+
+                {stepVarAction && (
+                  <div className="flex flex-col gap-2 bg-menu-secondary/40 rounded-lg p-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {stepVarAction === "create"
+                          ? t("functionsSection.varActionNewNameLabel", "Nome da nova variável")
+                          : t("functionsSection.varActionTargetLabel", "Variável")}
+                      </label>
+                      {stepVarAction === "create" ? (
+                        <>
+                          <input
+                            className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                            value={stepVarTargetName}
+                            onChange={(e) => setStepVarTargetName(e.target.value)}
+                            placeholder={t("variablesSection.namePlaceholder", "Ex: contador")}
+                          />
+                          {trimmedVarTargetName !== "" && !isValidAhkIdentifier(trimmedVarTargetName) && (
+                            <span className="text-xs text-red-400">
+                              {t(
+                                "functionsSection.invalidName",
+                                "Nome inválido: use apenas letras, números e _, sem começar com número."
+                              )}
+                            </span>
+                          )}
+                        </>
+                      ) : localVarTargets.length === 0 && globalVarTargets.length === 0 ? (
+                        <p className="opacity-60 text-xs">
+                          {t(
+                            "functionsSection.noVariablesAvailable",
+                            "Nenhuma variável disponível — crie uma primeiro."
+                          )}
+                        </p>
+                      ) : (
+                        <select
+                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 w-full text-sm appearance-none"
+                          value={stepVarTargetName}
+                          onChange={(e) => selectVarTarget(e.target.value)}
+                        >
+                          <option value="">
+                            {t("functionsSection.selectVariablePlaceholder", "Selecione uma variável")}
+                          </option>
+                          {localVarTargets.length > 0 && (
+                            <optgroup label={t("stepArgsFields.groupLocalVariables", "Variáveis locais")}>
+                              {localVarTargets.map((v) => (
+                                <option key={v.key} value={v.key}>
+                                  {v.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {globalVarTargets.length > 0 && (
+                            <optgroup label={t("stepArgsFields.groupGlobalVariables", "Variáveis globais")}>
+                              {globalVarTargets.map((v) => (
+                                <option key={v.key} value={v.key}>
+                                  {v.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </select>
+                      )}
+                    </div>
+
+                    {stepVarAction === "set" && isCoordinateVarTarget && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs opacity-70">
+                          {t("functionsSection.varActionValueLabel", "Novo valor")}
+                        </label>
+                        <CoordinateValueFields
+                          value={
+                            stepVarSetValue.kind === "coordinate"
+                              ? stepVarSetValue
+                              : EMPTY_COORDINATE_ASSIGNMENT
+                          }
+                          onChange={setStepVarSetValue}
+                          headerParams={headerParams}
+                          localVariables={localVariables}
+                          globalVariables={globalVariables}
+                        />
+                      </div>
+                    )}
+
+                    {stepVarAction === "set" && !isCoordinateVarTarget && (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="text-xs opacity-70">
+                            {t("functionsSection.varActionValueLabel", "Novo valor")}
+                          </label>
+                          {(headerParams.length > 0 || localVariables.length > 0 || globalVariables.length > 0) && (
+                            <select
+                              className="bg-menu-secondary rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none select-compact"
+                              aria-label={t("stepArgsFields.sourceLabel", "Origem do valor")}
+                              title={t("stepArgsFields.sourceLabel", "Origem do valor")}
+                              value={varSourceSelectValue()}
+                              onChange={(e) => setVarSourceSelection(e.target.value)}
+                            >
+                              <option value="">{t("stepArgsFields.fixedValue", "Valor fixo")}</option>
+                              {headerParams.length > 0 && (
+                                <optgroup label={t("stepArgsFields.groupHeaderParams", "Parâmetros do cabeçalho")}>
+                                  {headerParams.map((p) => (
+                                    <option key={`header:${p.key}`} value={`header:${p.key}`}>
+                                      {p.label}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {localVariables.length > 0 && (
+                                <optgroup label={t("stepArgsFields.groupLocalVariables", "Variáveis locais")}>
+                                  {localVariables.map((v) => (
+                                    <option key={`local:${v.key}`} value={`local:${v.key}`}>
+                                      {v.label}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {globalVariables.length > 0 && (
+                                <optgroup label={t("stepArgsFields.groupGlobalVariables", "Variáveis globais")}>
+                                  {globalVariables.map((v) => (
+                                    <option key={`global:${v.key}`} value={`global:${v.key}`}>
+                                      {v.label}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                            </select>
+                          )}
+                        </div>
+                        {stepVarSetValue.kind === "literal" ? (
+                          <input
+                            className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                            value={String(stepVarSetValue.value ?? "")}
+                            onChange={(e) => setStepVarSetValue({ kind: "literal", value: e.target.value })}
+                          />
+                        ) : stepVarSetValue.kind === "coordinate" ? null : (
+                          <ArgSourceValue
+                            arg={stepVarSetValue}
+                            label={t("functionsSection.varActionUsingSource", 'Usando "{{name}}"', {
+                              name:
+                                stepVarSetValue.kind === "headerParam"
+                                  ? stepVarSetValue.paramKey
+                                  : stepVarSetValue.variableName,
+                            })}
+                            onChange={setStepVarSetValue}
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {stepVarAction === "increment" && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs opacity-70">
+                          {t("functionsSection.varActionAmountLabel", "Quantidade (pode ser negativa)")}
+                        </label>
+                        <input
+                          type="number"
+                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                          value={stepVarIncrementAmount}
+                          onChange={(e) => setStepVarIncrementAmount(Number(e.target.value))}
+                        />
+                      </div>
+                    )}
+
+                    {stepVarAction === "create" && (
+                      <>
+                        <div className="flex gap-2">
+                          <div className="flex flex-col gap-1 flex-1">
+                            <label className="text-xs opacity-70">
+                              {t("variablesSection.typeLabel", "Tipo")}
+                            </label>
+                            <select
+                              className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 text-sm appearance-none"
+                              value={stepVarCreateType}
+                              onChange={(e) => {
+                                const nextType = e.target.value as VariableType;
+                                setStepVarCreateType(nextType);
+                                setStepVarCreateInitialValue(defaultVariableValue(nextType));
+                              }}
+                            >
+                              <option value="text">{t("functionsSection.paramTypeText", "Texto")}</option>
+                              <option value="number">{t("functionsSection.paramTypeNumber", "Número")}</option>
+                              <option value="boolean">{t("functionsSection.paramTypeBoolean", "Booleano")}</option>
+                              <option value="array">{t("functionsSection.paramTypeArray", "Array")}</option>
+                              <option value="coordinate">
+                                {t("functionsSection.paramTypeCoordinate", "Coordenada na tela")}
+                              </option>
+                            </select>
+                          </div>
+                          {stepVarCreateType !== "array" && stepVarCreateType !== "coordinate" && (
+                            <div className="flex flex-col gap-1 flex-1">
+                              <label className="text-xs opacity-70">
+                                {t("variablesSection.initialValueLabel", "Valor inicial")}
+                              </label>
+                              {stepVarCreateType === "boolean" ? (
+                                <label className="flex items-center gap-2 text-sm cursor-pointer select-none h-9">
+                                  <span className="relative flex items-center justify-center">
+                                    <input
+                                      type="checkbox"
+                                      className="peer appearance-none w-4 h-4 rounded border border-white/25 bg-transparent checked:bg-(--main) checked:border-(--main) transition-colors"
+                                      checked={Boolean(stepVarCreateInitialValue)}
+                                      onChange={(e) => setStepVarCreateInitialValue(e.target.checked)}
+                                    />
+                                    <svg
+                                      viewBox="0 0 16 16"
+                                      className="absolute w-3 h-3 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity"
+                                      fill="none"
+                                    >
+                                      <path
+                                        d="M3 8.5L6.5 12L13 4.5"
+                                        stroke="white"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      />
+                                    </svg>
+                                  </span>
+                                  {t("variablesSection.trueLabel", "Verdadeiro")}
+                                </label>
+                              ) : (
+                                <input
+                                  type={stepVarCreateType === "number" ? "number" : "text"}
+                                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full h-9 text-sm"
+                                  value={String(stepVarCreateInitialValue)}
+                                  onChange={(e) =>
+                                    setStepVarCreateInitialValue(
+                                      stepVarCreateType === "number" ? Number(e.target.value) : e.target.value
+                                    )
+                                  }
+                                />
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {stepVarCreateType === "coordinate" && (
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs opacity-70">
+                              {t("variablesSection.initialValueLabel", "Valor inicial")}
+                            </label>
+                            <CoordinateLiteralFields
+                              value={toCoordinateLiteral(stepVarCreateInitialValue)}
+                              onChange={setStepVarCreateInitialValue}
+                            />
+                          </div>
+                        )}
+
+                        {stepVarCreateType === "array" && (
+                          <div className="flex flex-col gap-1.5 bg-menu-secondary/60 rounded-lg p-2">
+                            <span className="text-xs opacity-70">
+                              {t("variablesSection.arrayItemsLabel", "Itens iniciais do array")}
+                            </span>
+                            {Array.isArray(stepVarCreateInitialValue) && stepVarCreateInitialValue.length > 0 && (
+                              <ul className="flex flex-wrap gap-1">
+                                {stepVarCreateInitialValue.map((item, index) => (
+                                  <li
+                                    key={`${item}-${index}`}
+                                    className="flex items-center gap-1 bg-menu-secondary rounded px-2 py-1 text-xs"
+                                  >
+                                    {item}
+                                    <button
+                                      type="button"
+                                      className="px-1 leading-none opacity-60 hover:opacity-100 cursor-pointer"
+                                      aria-label={t("functionsSection.remove", "Remover")}
+                                      title={t("functionsSection.remove", "Remover")}
+                                      onClick={() =>
+                                        setStepVarCreateInitialValue((prev) =>
+                                          Array.isArray(prev) ? prev.filter((_, i) => i !== index) : prev
+                                        )
+                                      }
+                                    >
+                                      ×
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <div className="flex gap-2">
+                              <input
+                                className="bg-menu-secondary rounded-lg px-2 py-1.5 outline-none text-sm flex-1"
+                                value={stepVarArrayNewItem}
+                                onChange={(e) => setStepVarArrayNewItem(e.target.value)}
+                                placeholder={t("functionsSection.paramOptionPlaceholder", "Ex: Rápido")}
+                                onKeyDown={(e) => {
+                                  if (e.key !== "Enter") return;
+                                  e.preventDefault();
+                                  const value = stepVarArrayNewItem.trim();
+                                  if (!value) return;
+                                  setStepVarCreateInitialValue((prev) =>
+                                    Array.isArray(prev) ? [...prev, value] : [value]
+                                  );
+                                  setStepVarArrayNewItem("");
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="button-secondary button-compact py-1 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                                disabled={!stepVarArrayNewItem.trim()}
+                                onClick={() => {
+                                  const value = stepVarArrayNewItem.trim();
+                                  if (!value) return;
+                                  setStepVarCreateInitialValue((prev) =>
+                                    Array.isArray(prev) ? [...prev, value] : [value]
+                                  );
+                                  setStepVarArrayNewItem("");
+                                }}
+                              >
+                                {t("functionsSection.addParamOption", "Adicionar opção")}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs opacity-70">
+                            {t("functionsSection.varActionScopeLabel", "Escopo")}
+                          </label>
+                          <div className="flex gap-1 bg-menu-secondary rounded-md p-0.5 text-xs w-fit">
+                            <button
+                              type="button"
+                              className={`px-2 py-1 rounded outline-none focus:outline-none cursor-pointer ${
+                                stepVarCreateScope === "local" ? "bg-(--main) text-white" : "opacity-60"
+                              }`}
+                              onClick={() => setStepVarCreateScope("local")}
+                            >
+                              {t("functionsSection.varActionScopeLocal", "Local")}
+                            </button>
+                            <button
+                              type="button"
+                              className={`px-2 py-1 rounded outline-none focus:outline-none cursor-pointer ${
+                                stepVarCreateScope === "global" ? "bg-(--main) text-white" : "opacity-60"
+                              }`}
+                              onClick={() => setStepVarCreateScope("global")}
+                            >
+                              {t("functionsSection.varActionScopeGlobal", "Global")}
+                            </button>
+                          </div>
+                          {stepVarCreateScope === "global" && (
+                            <span className="text-xs opacity-60">
+                              {t(
+                                "functionsSection.varActionScopeGlobalHint",
+                                "Vai aparecer também na aba Variáveis globais."
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {stepVarAction === "promptInput" && (
+                      <>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs opacity-70">
+                            {t("functionsSection.varActionPromptTitleLabel", "Título da caixa")}
+                          </label>
+                          <input
+                            className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                            value={stepVarPromptTitle}
+                            onChange={(e) => setStepVarPromptTitle(e.target.value)}
+                            placeholder={t("functionsSection.varActionPromptTitlePlaceholder", "Ex: Nome do arquivo")}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs opacity-70">
+                            {t("functionsSection.varActionPromptTextLabel", "Texto da pergunta")}
+                          </label>
+                          <input
+                            className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                            value={stepVarPromptText}
+                            onChange={(e) => setStepVarPromptText(e.target.value)}
+                            placeholder={t(
+                              "functionsSection.varActionPromptTextPlaceholder",
+                              "Ex: Digite o nome do arquivo:"
+                            )}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {stepFlowType && (
+                  <>
+                    <ConditionsEditor
+                      conditions={stepFlowConditions}
+                      onChange={setStepFlowConditions}
                       headerParams={headerParams}
                       localVariables={localVariables}
                       globalVariables={globalVariables}
-                      guiVariables={guiVariables}
-                      radialVariables={radialVariables}
-                      nextStepIdRef={nextStepIdRef}
-                      depth={depth + 1}
                     />
-                  </div>
 
-                  {stepFlowType === "conditional" && (
                     <div className="flex flex-col gap-1.5 bg-menu-secondary/30 border border-white/10 rounded-lg p-2.5">
                       <span className="text-[11px] font-semibold uppercase tracking-wide opacity-60">
-                        {t("functionsSection.flowElseBodyTitle", "Senão (opcional)")}
+                        {stepFlowType === "loop"
+                          ? t("functionsSection.flowBodyLoopTitle", "Corpo do loop")
+                          : t("functionsSection.flowBodyTitle", "Corpo (se verdadeiro)")}
                       </span>
                       <StepListEditor
-                        steps={stepFlowElseBody}
-                        onChange={setStepFlowElseBody}
+                        steps={stepFlowBody}
+                        onChange={setStepFlowBody}
                         functions={functions}
                         headerParams={headerParams}
                         localVariables={localVariables}
@@ -2031,606 +2029,627 @@ export default function StepListEditor({
                         depth={depth + 1}
                       />
                     </div>
-                  )}
-                </>
-              )}
 
-              {stepIsMenu && (
-                <div className="flex flex-col gap-2 bg-menu-secondary/40 rounded-lg p-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs opacity-70">
-                      {t("functionsSection.showMenuTitleLabel", "Título do menu")}
-                    </label>
-                    <input
-                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                      value={stepMenuTitle}
-                      onChange={(e) => setStepMenuTitle(e.target.value)}
-                      placeholder={t("functionsSection.showMenuTitlePlaceholder", "Ex: Ações rápidas")}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs opacity-70">
-                      {t("functionsSection.showMenuItemsLabel", "Opções")}
-                    </label>
-                    {stepMenuItems.length === 0 ? (
-                      <p className="opacity-60 text-xs">
-                        {t("functionsSection.showMenuEmptyItems", "Nenhuma opção adicionada ainda.")}
-                      </p>
-                    ) : (
-                      <ul className="flex flex-col gap-1">
-                        {stepMenuItems.map((item) => (
-                          <li
-                            key={item.id}
-                            className="flex items-center justify-between bg-menu-secondary rounded-lg px-2.5 py-1 text-xs gap-2"
-                          >
-                            <span className="font-mono truncate">
-                              {item.label} →{" "}
-                              {item.target.kind === "customFunction"
-                                ? item.target.functionName
-                                : tFunctionName(t, item.target.meta)}
-                            </span>
-                            <div className="flex gap-1 shrink-0">
-                              <button
-                                className="button-secondary py-0.5 px-2 text-xs"
-                                onClick={() => editMenuItem(item)}
-                              >
-                                {t("functionsSection.edit", "Editar")}
-                              </button>
-                              <button
-                                className="button-secondary py-0.5 px-2 text-xs"
-                                onClick={() => removeMenuItem(item.id)}
-                              >
-                                {t("functionsSection.remove", "Remover")}
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <button
-                      type="button"
-                      className="button-secondary text-xs py-1.5 w-fit"
-                      onClick={openMenuItemForm}
-                    >
-                      {t("functionsSection.showMenuAddItem", "Adicionar opção")}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {stepIsCreateGui && (
-                <div className="flex flex-col gap-2 bg-menu-secondary/40 rounded-lg p-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs opacity-70">
-                      {t("functionsSection.createGuiTitleLabel", "Título da janela")}
-                    </label>
-                    <input
-                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                      value={stepGuiTitle}
-                      onChange={(e) => setStepGuiTitle(e.target.value)}
-                      placeholder={t("functionsSection.createGuiTitlePlaceholder", "Ex: Configurações")}
-                    />
-                    {stepGuiTitle.trim() !== "" && (
-                      <span className="text-xs opacity-60">
-                        {t("functionsSection.createGuiVarNamePreview", "Variável: {{name}}", {
-                          name: guiVarNameFromTitle(stepGuiTitle.trim()),
-                        })}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <RecordOptionCheckbox
-                      checked={stepGuiResizable}
-                      onChange={setStepGuiResizable}
-                      label={t("functionsSection.createGuiResizable", "Redimensionável")}
-                    />
-                    <RecordOptionCheckbox
-                      checked={stepGuiAlwaysOnTop}
-                      onChange={setStepGuiAlwaysOnTop}
-                      label={t("functionsSection.createGuiAlwaysOnTop", "Sempre no topo")}
-                    />
-                    <RecordOptionCheckbox
-                      checked={stepGuiNoCaption}
-                      onChange={setStepGuiNoCaption}
-                      label={t("functionsSection.createGuiNoCaption", "Sem barra de título")}
-                    />
-                    <RecordOptionCheckbox
-                      checked={stepGuiToolWindow}
-                      onChange={setStepGuiToolWindow}
-                      label={t(
-                        "functionsSection.createGuiToolWindow",
-                        "Janela de ferramenta (some da barra de tarefas e do alt+tab)"
-                      )}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs opacity-70">
-                      {t("functionsSection.createGuiInitialStateLabel", "Estado inicial")}
-                    </label>
-                    <div className="flex gap-1 bg-menu-secondary rounded-md p-0.5 text-xs w-fit">
-                      {(
-                        [
-                          ["normal", t("functionsSection.createGuiStateNormal", "Normal")],
-                          ["maximized", t("functionsSection.createGuiStateMaximized", "Maximizada")],
-                          ["minimized", t("functionsSection.createGuiStateMinimized", "Minimizada")],
-                        ] as [GuiInitialState, string][]
-                      ).map(([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          className={`px-2 py-1 rounded outline-none focus:outline-none cursor-pointer ${
-                            stepGuiInitialState === value ? "bg-(--main) text-white" : "opacity-60"
-                          }`}
-                          onClick={() => setStepGuiInitialState(value)}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <div className="flex flex-col gap-1 flex-1">
-                      <label className="text-xs opacity-70">
-                        {t("functionsSection.createGuiWidthLabel", "Largura")}
-                      </label>
-                      <input
-                        type="number"
-                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                        value={stepGuiWidth}
-                        onChange={(e) => setStepGuiWidth(e.target.value)}
-                        placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1 flex-1">
-                      <label className="text-xs opacity-70">
-                        {t("functionsSection.createGuiHeightLabel", "Altura")}
-                      </label>
-                      <input
-                        type="number"
-                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                        value={stepGuiHeight}
-                        onChange={(e) => setStepGuiHeight(e.target.value)}
-                        placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <div className="flex flex-col gap-1 flex-1">
-                      <label className="text-xs opacity-70">
-                        {t("functionsSection.createGuiXLabel", "Posição X")}
-                      </label>
-                      <input
-                        type="number"
-                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                        value={stepGuiX}
-                        onChange={(e) => setStepGuiX(e.target.value)}
-                        placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1 flex-1">
-                      <label className="text-xs opacity-70">
-                        {t("functionsSection.createGuiYLabel", "Posição Y")}
-                      </label>
-                      <input
-                        type="number"
-                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                        value={stepGuiY}
-                        onChange={(e) => setStepGuiY(e.target.value)}
-                        placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <RecordOptionCheckbox
-                      checked={stepGuiUseColor}
-                      onChange={setStepGuiUseColor}
-                      label={t("functionsSection.createGuiUseColor", "Usar cor de fundo personalizada")}
-                    />
-                    {stepGuiUseColor && (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          className="w-9 h-9 rounded cursor-pointer bg-menu-secondary border border-white/10"
-                          value={`#${stepGuiColor}`}
-                          onChange={(e) => setStepGuiColor(e.target.value.slice(1))}
-                        />
-                        <input
-                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none text-sm font-mono w-28"
-                          value={stepGuiColor}
-                          onChange={(e) =>
-                            setStepGuiColor(e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))
-                          }
-                          placeholder="ffffff"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <RecordOptionCheckbox
-                      checked={stepGuiUseOpacity}
-                      onChange={setStepGuiUseOpacity}
-                      label={t("functionsSection.createGuiUseOpacity", "Usar opacidade personalizada")}
-                    />
-                    {stepGuiUseOpacity && (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="range"
-                          min={0}
-                          max={255}
-                          className="flex-1"
-                          value={stepGuiOpacity}
-                          onChange={(e) => setStepGuiOpacity(Number(e.target.value))}
-                        />
-                        <span className="text-xs opacity-70 font-mono w-10 text-right">{stepGuiOpacity}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs opacity-70">
-                      {t("functionsSection.createGuiControlsLabel", "Itens")}
-                    </label>
-                    {stepGuiControls.length === 0 ? (
-                      <p className="opacity-60 text-xs">
-                        {t("functionsSection.createGuiEmptyControls", "Nenhum item adicionado ainda.")}
-                      </p>
-                    ) : (
-                      <ul className="flex flex-col gap-1">
-                        {stepGuiControls.map((control) => (
-                          <li
-                            key={control.id}
-                            className="flex items-center justify-between bg-menu-secondary rounded-lg px-2.5 py-1 text-xs gap-2"
-                          >
-                            <span className="font-mono truncate">{guiControlSummary(t, control)}</span>
-                            <div className="flex gap-1 shrink-0">
-                              <button
-                                className="button-secondary py-0.5 px-2 text-xs"
-                                onClick={() => editGuiControl(control)}
-                              >
-                                {t("functionsSection.edit", "Editar")}
-                              </button>
-                              <button
-                                className="button-secondary py-0.5 px-2 text-xs"
-                                onClick={() => removeGuiControl(control.id)}
-                              >
-                                {t("functionsSection.remove", "Remover")}
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <button
-                      type="button"
-                      className="button-secondary text-xs py-1.5 w-fit"
-                      onClick={openGuiControlForm}
-                    >
-                      {t("functionsSection.createGuiAddControl", "Adicionar item")}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {stepIsCloseGui && (
-                <div className="flex flex-col gap-1 bg-menu-secondary/40 rounded-lg p-3">
-                  <label className="text-xs opacity-70">
-                    {t("functionsSection.closeGuiTargetLabel", "Gui a fechar")}
-                  </label>
-                  {guiVariables.length === 0 ? (
-                    <p className="opacity-60 text-xs">
-                      {t(
-                        "functionsSection.closeGuiNoneAvailable",
-                        "Nenhuma Gui disponível — crie um passo \"Criar Gui\" primeiro."
-                      )}
-                    </p>
-                  ) : (
-                    <select
-                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 w-full text-sm appearance-none"
-                      value={stepCloseGuiTarget}
-                      onChange={(e) => setStepCloseGuiTarget(e.target.value)}
-                    >
-                      <option value="">
-                        {t("functionsSection.closeGuiSelectPlaceholder", "Selecione uma Gui")}
-                      </option>
-                      {guiVariables.map((v) => (
-                        <option key={v.key} value={v.key}>
-                          {v.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
-
-              {stepIsOpenRadial && (
-                <div className="flex flex-col gap-2 bg-menu-secondary/40 rounded-lg p-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs opacity-70">
-                      {t("functionsSection.openRadialNameLabel", "Nome do seletor")}
-                    </label>
-                    <input
-                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                      value={stepRadialName}
-                      onChange={(e) => setStepRadialName(e.target.value)}
-                      placeholder={t("functionsSection.openRadialNamePlaceholder", "Ex: Ações rápidas")}
-                    />
-                    {stepRadialName.trim() !== "" && (
-                      <span className="text-xs opacity-60">
-                        {t("functionsSection.createGuiVarNamePreview", "Variável: {{name}}", {
-                          name: radialVarNameFromName(stepRadialName.trim()),
-                        })}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs opacity-70">
-                      {t("functionsSection.openRadialMinDistanceLabel", "Deslocamento mínimo (px)")}
-                    </label>
-                    <input
-                      type="number"
-                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                      value={stepRadialMinDistance}
-                      onChange={(e) => setStepRadialMinDistance(e.target.value)}
-                    />
-                    <span className="text-xs opacity-60">
-                      {t(
-                        "functionsSection.openRadialMinDistanceHint",
-                        "Se o mouse não passar disso em nenhum dos eixos, a opção central é executada."
-                      )}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <RecordOptionCheckbox
-                      checked={stepRadialTriggerOnMove}
-                      onChange={setStepRadialTriggerOnMove}
-                      label={t(
-                        "functionsSection.openRadialTriggerOnMove",
-                        "Executar assim que o mouse se mover (sem esperar o fechamento)"
-                      )}
-                    />
-                    {stepRadialTriggerOnMove && (
-                      <>
-                        <span className="text-xs opacity-60">
-                          {t(
-                            "functionsSection.openRadialTriggerOnMoveHint",
-                            "A opção da direção dispara no instante em que o mouse passa do mínimo. A opção central continua dependendo do passo de fechar — é só ali que dá para saber que o mouse não passou do mínimo."
-                          )}
+                    {stepFlowType === "conditional" && (
+                      <div className="flex flex-col gap-1.5 bg-menu-secondary/30 border border-white/10 rounded-lg p-2.5">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide opacity-60">
+                          {t("functionsSection.flowElseBodyTitle", "Senão (opcional)")}
                         </span>
-                        <div className="flex flex-col gap-1 pl-5 mt-1">
-                          <RecordOptionCheckbox
-                            checked={stepRadialKeepOpenOnSelect}
-                            onChange={setStepRadialKeepOpenOnSelect}
-                            label={t(
-                              "functionsSection.openRadialKeepOpen",
-                              "Não fechar ao selecionar opção (escolher várias seguidas)"
-                            )}
-                          />
-                          <span className="text-xs opacity-60">
-                            {stepRadialKeepOpenOnSelect
-                              ? t(
-                                  "functionsSection.openRadialKeepOpenHint",
-                                  "O seletor fica aberto até o passo de fechar. Basta ir para outra direção para escolher de novo; ficar parado na mesma direção não repete a opção. Voltar ao centro também libera repetir a última."
-                                )
-                              : t(
-                                  "functionsSection.openRadialKeepOpenOffHint",
-                                  "O seletor some sozinho assim que uma opção é escolhida."
-                                )}
-                          </span>
-                        </div>
-                      </>
+                        <StepListEditor
+                          steps={stepFlowElseBody}
+                          onChange={setStepFlowElseBody}
+                          functions={functions}
+                          headerParams={headerParams}
+                          localVariables={localVariables}
+                          globalVariables={globalVariables}
+                          guiVariables={guiVariables}
+                          radialVariables={radialVariables}
+                          nextStepIdRef={nextStepIdRef}
+                          depth={depth + 1}
+                        />
+                      </div>
                     )}
-                  </div>
+                  </>
+                )}
 
-                  <div className="flex flex-col gap-1">
-                    <RecordOptionCheckbox
-                      checked={stepRadialShowOverlay}
-                      onChange={setStepRadialShowOverlay}
-                      label={t(
-                        "functionsSection.openRadialShowOverlay",
-                        "Mostrar interface (círculo com as opções na tela)"
+                {stepIsMenu && (
+                  <div className="flex flex-col gap-2 bg-menu-secondary/40 rounded-lg p-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.showMenuTitleLabel", "Título do menu")}
+                      </label>
+                      <input
+                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                        value={stepMenuTitle}
+                        onChange={(e) => setStepMenuTitle(e.target.value)}
+                        placeholder={t("functionsSection.showMenuTitlePlaceholder", "Ex: Ações rápidas")}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.showMenuItemsLabel", "Opções")}
+                      </label>
+                      {stepMenuItems.length === 0 ? (
+                        <p className="opacity-60 text-xs">
+                          {t("functionsSection.showMenuEmptyItems", "Nenhuma opção adicionada ainda.")}
+                        </p>
+                      ) : (
+                        <ul className="flex flex-col gap-1">
+                          {stepMenuItems.map((item) => (
+                            <li
+                              key={item.id}
+                              className="flex items-center justify-between bg-menu-secondary rounded-lg px-2.5 py-1 text-xs gap-2"
+                            >
+                              <span className="font-mono truncate">
+                                {item.label} →{" "}
+                                {item.target.kind === "customFunction"
+                                  ? item.target.functionName
+                                  : tFunctionName(t, item.target.meta)}
+                              </span>
+                              <div className="flex gap-1 shrink-0">
+                                <button
+                                  className="button-secondary button-compact py-0.5 px-2 text-xs"
+                                  onClick={() => editMenuItem(item)}
+                                >
+                                  {t("functionsSection.edit", "Editar")}
+                                </button>
+                                <button
+                                  className="button-secondary button-compact py-0.5 px-2 text-xs"
+                                  onClick={() => removeMenuItem(item.id)}
+                                >
+                                  {t("functionsSection.remove", "Remover")}
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
                       )}
-                    />
-                    {!stepRadialShowOverlay && (
-                      <span className="text-xs opacity-60">
-                        {t(
-                          "functionsSection.openRadialHiddenHint",
-                          "Seletor invisível: nada aparece na tela, só o gesto do mouse decide a opção."
-                        )}
-                      </span>
-                    )}
+                      <button
+                        type="button"
+                        className="button-secondary button-compact text-xs py-1.5 w-fit"
+                        onClick={openMenuItemForm}
+                      >
+                        {t("functionsSection.showMenuAddItem", "Adicionar opção")}
+                      </button>
+                    </div>
                   </div>
+                )}
 
-                  {stepRadialShowOverlay && (
-                    <>
-                      <div className="flex flex-col gap-1">
+                {stepIsCreateGui && (
+                  <div className="flex flex-col gap-2 bg-menu-secondary/40 rounded-lg p-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.createGuiTitleLabel", "Título da janela")}
+                      </label>
+                      <input
+                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                        value={stepGuiTitle}
+                        onChange={(e) => setStepGuiTitle(e.target.value)}
+                        placeholder={t("functionsSection.createGuiTitlePlaceholder", "Ex: Configurações")}
+                      />
+                      {stepGuiTitle.trim() !== "" && (
+                        <span className="text-xs opacity-60">
+                          {t("functionsSection.createGuiVarNamePreview", "Variável: {{name}}", {
+                            name: guiVarNameFromTitle(stepGuiTitle.trim()),
+                          })}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <RecordOptionCheckbox
+                        checked={stepGuiResizable}
+                        onChange={setStepGuiResizable}
+                        label={t("functionsSection.createGuiResizable", "Redimensionável")}
+                      />
+                      <RecordOptionCheckbox
+                        checked={stepGuiAlwaysOnTop}
+                        onChange={setStepGuiAlwaysOnTop}
+                        label={t("functionsSection.createGuiAlwaysOnTop", "Sempre no topo")}
+                      />
+                      <RecordOptionCheckbox
+                        checked={stepGuiNoCaption}
+                        onChange={setStepGuiNoCaption}
+                        label={t("functionsSection.createGuiNoCaption", "Sem barra de título")}
+                      />
+                      <RecordOptionCheckbox
+                        checked={stepGuiToolWindow}
+                        onChange={setStepGuiToolWindow}
+                        label={t(
+                          "functionsSection.createGuiToolWindow",
+                          "Janela de ferramenta (some da barra de tarefas e do alt+tab)"
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.createGuiInitialStateLabel", "Estado inicial")}
+                      </label>
+                      <div className="flex gap-1 bg-menu-secondary rounded-md p-0.5 text-xs w-fit">
+                        {(
+                          [
+                            ["normal", t("functionsSection.createGuiStateNormal", "Normal")],
+                            ["maximized", t("functionsSection.createGuiStateMaximized", "Maximizada")],
+                            ["minimized", t("functionsSection.createGuiStateMinimized", "Minimizada")],
+                          ] as [GuiInitialState, string][]
+                        ).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            className={`px-2 py-1 rounded outline-none focus:outline-none cursor-pointer ${
+                              stepGuiInitialState === value ? "bg-(--main) text-white" : "opacity-60"
+                            }`}
+                            onClick={() => setStepGuiInitialState(value)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div className="flex flex-col gap-1 flex-1">
                         <label className="text-xs opacity-70">
-                          {t("functionsSection.openRadialRadiusLabel", "Raio do círculo (px)")}
+                          {t("functionsSection.createGuiWidthLabel", "Largura")}
                         </label>
                         <input
                           type="number"
                           className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                          value={stepRadialRadius}
-                          onChange={(e) => setStepRadialRadius(e.target.value)}
+                          value={stepGuiWidth}
+                          onChange={(e) => setStepGuiWidth(e.target.value)}
+                          placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
                         />
                       </div>
-
-                      <div className="flex gap-4">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs opacity-70">
-                            {t("functionsSection.openRadialBackColorLabel", "Cor de fundo")}
-                          </label>
-                          <input
-                            type="color"
-                            className="w-9 h-9 rounded cursor-pointer bg-menu-secondary border border-white/10"
-                            value={`#${stepRadialBackColor}`}
-                            onChange={(e) => setStepRadialBackColor(e.target.value.slice(1))}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-xs opacity-70">
-                            {t("functionsSection.openRadialTextColorLabel", "Cor do texto")}
-                          </label>
-                          <input
-                            type="color"
-                            className="w-9 h-9 rounded cursor-pointer bg-menu-secondary border border-white/10"
-                            value={`#${stepRadialTextColor}`}
-                            onChange={(e) => setStepRadialTextColor(e.target.value.slice(1))}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1 flex-1">
                         <label className="text-xs opacity-70">
-                          {t("functionsSection.openRadialOpacityLabel", "Opacidade")}
+                          {t("functionsSection.createGuiHeightLabel", "Altura")}
                         </label>
+                        <input
+                          type="number"
+                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                          value={stepGuiHeight}
+                          onChange={(e) => setStepGuiHeight(e.target.value)}
+                          placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div className="flex flex-col gap-1 flex-1">
+                        <label className="text-xs opacity-70">
+                          {t("functionsSection.createGuiXLabel", "Posição X")}
+                        </label>
+                        <input
+                          type="number"
+                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                          value={stepGuiX}
+                          onChange={(e) => setStepGuiX(e.target.value)}
+                          placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1 flex-1">
+                        <label className="text-xs opacity-70">
+                          {t("functionsSection.createGuiYLabel", "Posição Y")}
+                        </label>
+                        <input
+                          type="number"
+                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                          value={stepGuiY}
+                          onChange={(e) => setStepGuiY(e.target.value)}
+                          placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <RecordOptionCheckbox
+                        checked={stepGuiUseColor}
+                        onChange={setStepGuiUseColor}
+                        label={t("functionsSection.createGuiUseColor", "Usar cor de fundo personalizada")}
+                      />
+                      {stepGuiUseColor && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            className="w-9 h-9 rounded cursor-pointer bg-menu-secondary border border-white/10"
+                            value={`#${stepGuiColor}`}
+                            onChange={(e) => setStepGuiColor(e.target.value.slice(1))}
+                          />
+                          <input
+                            className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none h-9 text-sm font-mono w-28"
+                            value={stepGuiColor}
+                            onChange={(e) =>
+                              setStepGuiColor(e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))
+                            }
+                            placeholder="ffffff"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <RecordOptionCheckbox
+                        checked={stepGuiUseOpacity}
+                        onChange={setStepGuiUseOpacity}
+                        label={t("functionsSection.createGuiUseOpacity", "Usar opacidade personalizada")}
+                      />
+                      {stepGuiUseOpacity && (
                         <div className="flex items-center gap-2">
                           <input
                             type="range"
                             min={0}
                             max={255}
                             className="flex-1"
-                            value={stepRadialOpacity}
-                            onChange={(e) => setStepRadialOpacity(Number(e.target.value))}
+                            value={stepGuiOpacity}
+                            onChange={(e) => setStepGuiOpacity(Number(e.target.value))}
                           />
-                          <span className="text-xs opacity-70 font-mono w-10 text-right">
-                            {stepRadialOpacity}
-                          </span>
+                          <span className="text-xs opacity-70 font-mono w-10 text-right">{stepGuiOpacity}</span>
                         </div>
-                      </div>
-                    </>
-                  )}
+                      )}
+                    </div>
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs opacity-70">
-                      {t("functionsSection.openRadialOptionsLabel", "Opções por direção")}
-                    </label>
-                    <ul className="flex flex-col gap-1">
-                      {RADIAL_DIRECTIONS.map((direction) => {
-                        const option = stepRadialOptions[direction];
-                        return (
-                          <li
-                            key={direction}
-                            className="flex items-center justify-between bg-menu-secondary rounded-lg px-2.5 py-1 text-xs gap-2"
-                          >
-                            <span className="truncate">
-                              <span className="opacity-70">{radialDirectionLabel(t, direction)}: </span>
-                              <span className="font-mono">
-                                {option
-                                  ? option.target.kind === "customFunction"
-                                    ? option.target.functionName
-                                    : tFunctionName(t, option.target.meta)
-                                  : t("functionsSection.openRadialUnbound", "nada")}
-                              </span>
-                            </span>
-                            <div className="flex gap-1 shrink-0">
-                              <button
-                                className="button-secondary py-0.5 px-2 text-xs"
-                                onClick={() => openRadialOptionForm(direction)}
-                              >
-                                {option
-                                  ? t("functionsSection.edit", "Editar")
-                                  : t("functionsSection.openRadialBind", "Definir")}
-                              </button>
-                              {option && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.createGuiControlsLabel", "Itens")}
+                      </label>
+                      {stepGuiControls.length === 0 ? (
+                        <p className="opacity-60 text-xs">
+                          {t("functionsSection.createGuiEmptyControls", "Nenhum item adicionado ainda.")}
+                        </p>
+                      ) : (
+                        <ul className="flex flex-col gap-1">
+                          {stepGuiControls.map((control) => (
+                            <li
+                              key={control.id}
+                              className="flex items-center justify-between bg-menu-secondary rounded-lg px-2.5 py-1 text-xs gap-2"
+                            >
+                              <span className="font-mono truncate">{guiControlSummary(t, control)}</span>
+                              <div className="flex gap-1 shrink-0">
                                 <button
-                                  className="button-secondary py-0.5 px-2 text-xs"
-                                  onClick={() => clearRadialOption(direction)}
+                                  className="button-secondary button-compact py-0.5 px-2 text-xs"
+                                  onClick={() => editGuiControl(control)}
+                                >
+                                  {t("functionsSection.edit", "Editar")}
+                                </button>
+                                <button
+                                  className="button-secondary button-compact py-0.5 px-2 text-xs"
+                                  onClick={() => removeGuiControl(control.id)}
                                 >
                                   {t("functionsSection.remove", "Remover")}
                                 </button>
-                              )}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <button
+                        type="button"
+                        className="button-secondary button-compact text-xs py-1.5 w-fit"
+                        onClick={openGuiControlForm}
+                      >
+                        {t("functionsSection.createGuiAddControl", "Adicionar item")}
+                      </button>
+                    </div>
                   </div>
+                )}
 
-                  <div className="flex flex-col gap-1">
+                {stepIsCloseGui && (
+                  <div className="flex flex-col gap-1 bg-menu-secondary/40 rounded-lg p-3">
                     <label className="text-xs opacity-70">
-                      {t("functionsSection.openRadialOnCloseLabel", "Ao fechar o seletor (opcional)")}
+                      {t("functionsSection.closeGuiTargetLabel", "Gui a fechar")}
                     </label>
-                    <ul className="flex flex-col gap-1">
-                      <li className="flex items-center justify-between bg-menu-secondary rounded-lg px-2.5 py-1 text-xs gap-2">
-                        <span className="font-mono truncate">
-                          {stepRadialOnClose
-                            ? stepRadialOnClose.kind === "customFunction"
-                              ? stepRadialOnClose.functionName
-                              : tFunctionName(t, stepRadialOnClose.meta)
-                            : t("functionsSection.openRadialUnbound", "nada")}
-                        </span>
-                        <div className="flex gap-1 shrink-0">
-                          <button
-                            className="button-secondary py-0.5 px-2 text-xs"
-                            onClick={() => openRadialOptionForm("onClose")}
-                          >
-                            {stepRadialOnClose
-                              ? t("functionsSection.edit", "Editar")
-                              : t("functionsSection.openRadialBind", "Definir")}
-                          </button>
-                          {stepRadialOnClose && (
-                            <button
-                              className="button-secondary py-0.5 px-2 text-xs"
-                              onClick={() => clearRadialOption("onClose")}
-                            >
-                              {t("functionsSection.remove", "Remover")}
-                            </button>
-                          )}
-                        </div>
-                      </li>
-                    </ul>
-                    <span className="text-xs opacity-60">
-                      {t(
-                        "functionsSection.openRadialOnCloseHint",
-                        "Roda no passo de fechar, sempre depois da opção escolhida — inclusive quando ela já tinha disparado no movimento."
-                      )}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {stepIsCloseRadial && (
-                <div className="flex flex-col gap-1 bg-menu-secondary/40 rounded-lg p-3">
-                  <label className="text-xs opacity-70">
-                    {t("functionsSection.closeRadialTargetLabel", "Seletor a fechar")}
-                  </label>
-                  {radialVariables.length === 0 ? (
-                    <p className="opacity-60 text-xs">
-                      {t(
-                        "functionsSection.closeRadialNoneAvailable",
-                        "Nenhum seletor disponível — crie um passo \"Abrir seletor rápido circular\" primeiro."
-                      )}
-                    </p>
-                  ) : (
-                    <select
-                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 w-full text-sm appearance-none"
-                      value={stepCloseRadialTarget}
-                      onChange={(e) => setStepCloseRadialTarget(e.target.value)}
-                    >
-                      <option value="">
-                        {t("functionsSection.closeRadialSelectPlaceholder", "Selecione um seletor")}
-                      </option>
-                      {radialVariables.map((v) => (
-                        <option key={v.key} value={v.key}>
-                          {v.label}
+                    {guiVariables.length === 0 ? (
+                      <p className="opacity-60 text-xs">
+                        {t(
+                          "functionsSection.closeGuiNoneAvailable",
+                          "Nenhuma Gui disponível — crie um passo \"Criar Gui\" primeiro."
+                        )}
+                      </p>
+                    ) : (
+                      <select
+                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 w-full text-sm appearance-none"
+                        value={stepCloseGuiTarget}
+                        onChange={(e) => setStepCloseGuiTarget(e.target.value)}
+                      >
+                        <option value="">
+                          {t("functionsSection.closeGuiSelectPlaceholder", "Selecione uma Gui")}
                         </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
+                        {guiVariables.map((v) => (
+                          <option key={v.key} value={v.key}>
+                            {v.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {stepIsOpenRadial && (
+                  <div className="flex flex-col gap-2 bg-menu-secondary/40 rounded-lg p-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.openRadialNameLabel", "Nome do seletor")}
+                      </label>
+                      <input
+                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                        value={stepRadialName}
+                        onChange={(e) => setStepRadialName(e.target.value)}
+                        placeholder={t("functionsSection.openRadialNamePlaceholder", "Ex: Ações rápidas")}
+                      />
+                      {stepRadialName.trim() !== "" && (
+                        <span className="text-xs opacity-60">
+                          {t("functionsSection.createGuiVarNamePreview", "Variável: {{name}}", {
+                            name: radialVarNameFromName(stepRadialName.trim()),
+                          })}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.openRadialMinDistanceLabel", "Deslocamento mínimo (px)")}
+                      </label>
+                      <input
+                        type="number"
+                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                        value={stepRadialMinDistance}
+                        onChange={(e) => setStepRadialMinDistance(e.target.value)}
+                      />
+                      <span className="text-xs opacity-60">
+                        {t(
+                          "functionsSection.openRadialMinDistanceHint",
+                          "Se o mouse não passar disso em nenhum dos eixos, a opção central é executada."
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <RecordOptionCheckbox
+                        checked={stepRadialTriggerOnMove}
+                        onChange={setStepRadialTriggerOnMove}
+                        label={t(
+                          "functionsSection.openRadialTriggerOnMove",
+                          "Executar assim que o mouse se mover (sem esperar o fechamento)"
+                        )}
+                      />
+                      {stepRadialTriggerOnMove && (
+                        <>
+                          <span className="text-xs opacity-60">
+                            {t(
+                              "functionsSection.openRadialTriggerOnMoveHint",
+                              "A opção da direção dispara no instante em que o mouse passa do mínimo. A opção central continua dependendo do passo de fechar — é só ali que dá para saber que o mouse não passou do mínimo."
+                            )}
+                          </span>
+                          <div className="flex flex-col gap-1 pl-5 mt-1">
+                            <RecordOptionCheckbox
+                              checked={stepRadialKeepOpenOnSelect}
+                              onChange={setStepRadialKeepOpenOnSelect}
+                              label={t(
+                                "functionsSection.openRadialKeepOpen",
+                                "Não fechar ao selecionar opção (escolher várias seguidas)"
+                              )}
+                            />
+                            <span className="text-xs opacity-60">
+                              {stepRadialKeepOpenOnSelect
+                                ? t(
+                                    "functionsSection.openRadialKeepOpenHint",
+                                    "O seletor fica aberto até o passo de fechar. Basta ir para outra direção para escolher de novo; ficar parado na mesma direção não repete a opção. Voltar ao centro também libera repetir a última."
+                                  )
+                                : t(
+                                    "functionsSection.openRadialKeepOpenOffHint",
+                                    "O seletor some sozinho assim que uma opção é escolhida."
+                                  )}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <RecordOptionCheckbox
+                        checked={stepRadialShowOverlay}
+                        onChange={setStepRadialShowOverlay}
+                        label={t(
+                          "functionsSection.openRadialShowOverlay",
+                          "Mostrar interface (círculo com as opções na tela)"
+                        )}
+                      />
+                      {!stepRadialShowOverlay && (
+                        <span className="text-xs opacity-60">
+                          {t(
+                            "functionsSection.openRadialHiddenHint",
+                            "Seletor invisível: nada aparece na tela, só o gesto do mouse decide a opção."
+                          )}
+                        </span>
+                      )}
+                    </div>
+
+                    {stepRadialShowOverlay && (
+                      <>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs opacity-70">
+                            {t("functionsSection.openRadialRadiusLabel", "Raio do círculo (px)")}
+                          </label>
+                          <input
+                            type="number"
+                            className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                            value={stepRadialRadius}
+                            onChange={(e) => setStepRadialRadius(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="flex gap-4">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs opacity-70">
+                              {t("functionsSection.openRadialBackColorLabel", "Cor de fundo")}
+                            </label>
+                            <input
+                              type="color"
+                              className="w-9 h-9 rounded cursor-pointer bg-menu-secondary border border-white/10"
+                              value={`#${stepRadialBackColor}`}
+                              onChange={(e) => setStepRadialBackColor(e.target.value.slice(1))}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs opacity-70">
+                              {t("functionsSection.openRadialTextColorLabel", "Cor do texto")}
+                            </label>
+                            <input
+                              type="color"
+                              className="w-9 h-9 rounded cursor-pointer bg-menu-secondary border border-white/10"
+                              value={`#${stepRadialTextColor}`}
+                              onChange={(e) => setStepRadialTextColor(e.target.value.slice(1))}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs opacity-70">
+                            {t("functionsSection.openRadialOpacityLabel", "Opacidade")}
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="range"
+                              min={0}
+                              max={255}
+                              className="flex-1"
+                              value={stepRadialOpacity}
+                              onChange={(e) => setStepRadialOpacity(Number(e.target.value))}
+                            />
+                            <span className="text-xs opacity-70 font-mono w-10 text-right">
+                              {stepRadialOpacity}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.openRadialOptionsLabel", "Opções por direção")}
+                      </label>
+                      <ul className="flex flex-col gap-1">
+                        {RADIAL_DIRECTIONS.map((direction) => {
+                          const option = stepRadialOptions[direction];
+                          return (
+                            <li
+                              key={direction}
+                              className="flex items-center justify-between bg-menu-secondary rounded-lg px-2.5 py-1 text-xs gap-2"
+                            >
+                              <span className="truncate">
+                                <span className="opacity-70">{radialDirectionLabel(t, direction)}: </span>
+                                <span className="font-mono">
+                                  {option
+                                    ? option.target.kind === "customFunction"
+                                      ? option.target.functionName
+                                      : tFunctionName(t, option.target.meta)
+                                    : t("functionsSection.openRadialUnbound", "nada")}
+                                </span>
+                              </span>
+                              <div className="flex gap-1 shrink-0">
+                                <button
+                                  className="button-secondary button-compact py-0.5 px-2 text-xs"
+                                  onClick={() => openRadialOptionForm(direction)}
+                                >
+                                  {option
+                                    ? t("functionsSection.edit", "Editar")
+                                    : t("functionsSection.openRadialBind", "Definir")}
+                                </button>
+                                {option && (
+                                  <button
+                                    className="button-secondary button-compact py-0.5 px-2 text-xs"
+                                    onClick={() => clearRadialOption(direction)}
+                                  >
+                                    {t("functionsSection.remove", "Remover")}
+                                  </button>
+                                )}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.openRadialOnCloseLabel", "Ao fechar o seletor (opcional)")}
+                      </label>
+                      <ul className="flex flex-col gap-1">
+                        <li className="flex items-center justify-between bg-menu-secondary rounded-lg px-2.5 py-1 text-xs gap-2">
+                          <span className="font-mono truncate">
+                            {stepRadialOnClose
+                              ? stepRadialOnClose.kind === "customFunction"
+                                ? stepRadialOnClose.functionName
+                                : tFunctionName(t, stepRadialOnClose.meta)
+                              : t("functionsSection.openRadialUnbound", "nada")}
+                          </span>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              className="button-secondary button-compact py-0.5 px-2 text-xs"
+                              onClick={() => openRadialOptionForm("onClose")}
+                            >
+                              {stepRadialOnClose
+                                ? t("functionsSection.edit", "Editar")
+                                : t("functionsSection.openRadialBind", "Definir")}
+                            </button>
+                            {stepRadialOnClose && (
+                              <button
+                                className="button-secondary button-compact py-0.5 px-2 text-xs"
+                                onClick={() => clearRadialOption("onClose")}
+                              >
+                                {t("functionsSection.remove", "Remover")}
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      </ul>
+                      <span className="text-xs opacity-60">
+                        {t(
+                          "functionsSection.openRadialOnCloseHint",
+                          "Roda no passo de fechar, sempre depois da opção escolhida — inclusive quando ela já tinha disparado no movimento."
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {stepIsCloseRadial && (
+                  <div className="flex flex-col gap-1 bg-menu-secondary/40 rounded-lg p-3">
+                    <label className="text-xs opacity-70">
+                      {t("functionsSection.closeRadialTargetLabel", "Seletor a fechar")}
+                    </label>
+                    {radialVariables.length === 0 ? (
+                      <p className="opacity-60 text-xs">
+                        {t(
+                          "functionsSection.closeRadialNoneAvailable",
+                          "Nenhum seletor disponível — crie um passo \"Abrir seletor rápido circular\" primeiro."
+                        )}
+                      </p>
+                    ) : (
+                      <select
+                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 w-full text-sm appearance-none"
+                        value={stepCloseRadialTarget}
+                        onChange={(e) => setStepCloseRadialTarget(e.target.value)}
+                      >
+                        <option value="">
+                          {t("functionsSection.closeRadialSelectPlaceholder", "Selecione um seletor")}
+                        </option>
+                        {radialVariables.map((v) => (
+                          <option key={v.key} value={v.key}>
+                            {v.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+              </div>
+
             </div>
 
-            <div className="flex gap-2 justify-end">
+            <div className="shrink-0 flex gap-2 justify-end px-4 py-3 border-t border-white/10">
               <button className="button-secondary" onClick={closeStepForm}>
                 {t("functionsSection.cancel", "Cancelar")}
               </button>
@@ -2676,73 +2695,71 @@ export default function StepListEditor({
           onMouseDown={closeMenuItemForm}
         >
           <div
-            className="bg-menu-dark rounded-lg shadow-lg p-4 flex flex-col gap-3 w-full max-w-lg max-h-[85vh] overflow-auto"
+            className="bg-menu-dark rounded-lg shadow-lg flex flex-col w-full max-w-lg max-h-[85vh] overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <span className="text-sm font-semibold">
+            <h2 className="shrink-0 px-4 pt-4 pb-3 border-b border-white/10 text-base font-semibold">
               {editingMenuItemId !== null
                 ? t("functionsSection.showMenuEditItemTitle", "Editar opção")
                 : t("functionsSection.showMenuNewItemTitle", "Nova opção")}
-            </span>
+            </h2>
+            <div className="flex flex-col gap-3 p-4 min-h-0 overflow-y-auto">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs opacity-70">
+                  {t("functionsSection.showMenuItemLabelLabel", "Texto da opção")}
+                </label>
+                <input
+                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                  value={menuItemLabel}
+                  onChange={(e) => setMenuItemLabel(e.target.value)}
+                  placeholder={t("functionsSection.showMenuItemLabelPlaceholder", "Ex: Abrir configurações")}
+                  autoFocus
+                />
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-xs opacity-70">
-                {t("functionsSection.showMenuItemLabelLabel", "Texto da opção")}
-              </label>
-              <input
-                className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                value={menuItemLabel}
-                onChange={(e) => setMenuItemLabel(e.target.value)}
-                placeholder={t("functionsSection.showMenuItemLabelPlaceholder", "Ex: Abrir configurações")}
-                autoFocus
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs opacity-70">
-                {t("functionsSection.selectStepFunction", "Selecione uma função")}
-              </label>
               <FunctionPicker
                 items={menuItemPickerItems}
                 value={menuItemSelection}
                 onChange={selectMenuItemTarget}
                 placeholder={t("functionsSection.selectStepFunction", "Selecione uma função")}
+                tone="target"
                 className="w-full"
               />
+
+              {menuItemBuiltin && menuItemBuiltin.params.length > 0 && (
+                <StepArgsFields
+                  targetId={menuItemBuiltin.id}
+                  params={menuItemBuiltin.params}
+                  headerParams={headerParams}
+                  localVariables={localVariables}
+                  globalVariables={globalVariables}
+                  values={menuItemBuiltinArgs}
+                  onChange={(key, arg) => setMenuItemBuiltinArgs((prev) => ({ ...prev, [key]: arg }))}
+                  resetSignal={stepResetSignal}
+                  title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                    name: tFunctionName(t, menuItemBuiltin),
+                  })}
+                />
+              )}
+
+              {menuItemFunctionTarget && menuItemFunctionCallParams.length > 0 && (
+                <StepArgsFields
+                  params={menuItemFunctionCallParams}
+                  headerParams={headerParams}
+                  localVariables={localVariables}
+                  globalVariables={globalVariables}
+                  values={menuItemFunctionArgs}
+                  onChange={(key, arg) => setMenuItemFunctionArgs((prev) => ({ ...prev, [key]: arg }))}
+                  resetSignal={stepResetSignal}
+                  title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                    name: menuItemFunctionTarget.name,
+                  })}
+                />
+              )}
+
             </div>
 
-            {menuItemBuiltin && menuItemBuiltin.params.length > 0 && (
-              <StepArgsFields
-                targetId={menuItemBuiltin.id}
-                params={menuItemBuiltin.params}
-                headerParams={headerParams}
-                localVariables={localVariables}
-                globalVariables={globalVariables}
-                values={menuItemBuiltinArgs}
-                onChange={(key, arg) => setMenuItemBuiltinArgs((prev) => ({ ...prev, [key]: arg }))}
-                resetSignal={stepResetSignal}
-                title={t("paramsFields.title", "Parâmetros de {{name}}", {
-                  name: tFunctionName(t, menuItemBuiltin),
-                })}
-              />
-            )}
-
-            {menuItemFunctionTarget && menuItemFunctionCallParams.length > 0 && (
-              <StepArgsFields
-                params={menuItemFunctionCallParams}
-                headerParams={headerParams}
-                localVariables={localVariables}
-                globalVariables={globalVariables}
-                values={menuItemFunctionArgs}
-                onChange={(key, arg) => setMenuItemFunctionArgs((prev) => ({ ...prev, [key]: arg }))}
-                resetSignal={stepResetSignal}
-                title={t("paramsFields.title", "Parâmetros de {{name}}", {
-                  name: menuItemFunctionTarget.name,
-                })}
-              />
-            )}
-
-            <div className="flex gap-2 justify-end">
+            <div className="shrink-0 flex gap-2 justify-end px-4 py-3 border-t border-white/10">
               <button className="button-secondary" onClick={closeMenuItemForm}>
                 {t("functionsSection.cancel", "Cancelar")}
               </button>
@@ -2767,78 +2784,76 @@ export default function StepListEditor({
           onMouseDown={closeRadialOptionForm}
         >
           <div
-            className="bg-menu-dark rounded-lg shadow-lg p-4 flex flex-col gap-3 w-full max-w-lg max-h-[85vh] overflow-auto"
+            className="bg-menu-dark rounded-lg shadow-lg flex flex-col w-full max-w-lg max-h-[85vh] overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <span className="text-sm font-semibold">
+            <h2 className="shrink-0 px-4 pt-4 pb-3 border-b border-white/10 text-base font-semibold">
               {radialOptionSlot === "onClose"
                 ? t("functionsSection.openRadialOnCloseTitle", "Função ao fechar o seletor")
                 : t("functionsSection.openRadialOptionTitle", "Opção: {{direction}}", {
                     direction: radialDirectionLabel(t, radialOptionSlot),
                   })}
-            </span>
+            </h2>
+            <div className="flex flex-col gap-3 p-4 min-h-0 overflow-y-auto">
+              {/* The "ao fechar" call is never drawn, and an invisible selector draws no labels either. */}
+              {radialOptionSlot !== "onClose" && stepRadialShowOverlay && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs opacity-70">
+                    {t("functionsSection.openRadialOptionLabelLabel", "Texto mostrado no círculo")}
+                  </label>
+                  <input
+                    className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                    value={radialOptionLabel}
+                    onChange={(e) => setRadialOptionLabel(e.target.value)}
+                    placeholder={t("functionsSection.showMenuItemLabelPlaceholder", "Ex: Abrir configurações")}
+                    autoFocus
+                  />
+                </div>
+              )}
 
-            {/* The "ao fechar" call is never drawn, and an invisible selector draws no labels either. */}
-            {radialOptionSlot !== "onClose" && stepRadialShowOverlay && (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs opacity-70">
-                  {t("functionsSection.openRadialOptionLabelLabel", "Texto mostrado no círculo")}
-                </label>
-                <input
-                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                  value={radialOptionLabel}
-                  onChange={(e) => setRadialOptionLabel(e.target.value)}
-                  placeholder={t("functionsSection.showMenuItemLabelPlaceholder", "Ex: Abrir configurações")}
-                  autoFocus
-                />
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs opacity-70">
-                {t("functionsSection.selectStepFunction", "Selecione uma função")}
-              </label>
               <FunctionPicker
                 items={menuItemPickerItems}
                 value={radialOptionSelection}
                 onChange={selectRadialOptionTarget}
                 placeholder={t("functionsSection.selectStepFunction", "Selecione uma função")}
+                tone="target"
                 className="w-full"
               />
+
+              {radialOptionBuiltin && radialOptionBuiltin.params.length > 0 && (
+                <StepArgsFields
+                  targetId={radialOptionBuiltin.id}
+                  params={radialOptionBuiltin.params}
+                  headerParams={headerParams}
+                  localVariables={localVariables}
+                  globalVariables={globalVariables}
+                  values={radialOptionBuiltinArgs}
+                  onChange={(key, arg) => setRadialOptionBuiltinArgs((prev) => ({ ...prev, [key]: arg }))}
+                  resetSignal={stepResetSignal}
+                  title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                    name: tFunctionName(t, radialOptionBuiltin),
+                  })}
+                />
+              )}
+
+              {radialOptionFunctionTarget && radialOptionFunctionCallParams.length > 0 && (
+                <StepArgsFields
+                  params={radialOptionFunctionCallParams}
+                  headerParams={headerParams}
+                  localVariables={localVariables}
+                  globalVariables={globalVariables}
+                  values={radialOptionFunctionArgs}
+                  onChange={(key, arg) => setRadialOptionFunctionArgs((prev) => ({ ...prev, [key]: arg }))}
+                  resetSignal={stepResetSignal}
+                  title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                    name: radialOptionFunctionTarget.name,
+                  })}
+                />
+              )}
+
             </div>
 
-            {radialOptionBuiltin && radialOptionBuiltin.params.length > 0 && (
-              <StepArgsFields
-                targetId={radialOptionBuiltin.id}
-                params={radialOptionBuiltin.params}
-                headerParams={headerParams}
-                localVariables={localVariables}
-                globalVariables={globalVariables}
-                values={radialOptionBuiltinArgs}
-                onChange={(key, arg) => setRadialOptionBuiltinArgs((prev) => ({ ...prev, [key]: arg }))}
-                resetSignal={stepResetSignal}
-                title={t("paramsFields.title", "Parâmetros de {{name}}", {
-                  name: tFunctionName(t, radialOptionBuiltin),
-                })}
-              />
-            )}
-
-            {radialOptionFunctionTarget && radialOptionFunctionCallParams.length > 0 && (
-              <StepArgsFields
-                params={radialOptionFunctionCallParams}
-                headerParams={headerParams}
-                localVariables={localVariables}
-                globalVariables={globalVariables}
-                values={radialOptionFunctionArgs}
-                onChange={(key, arg) => setRadialOptionFunctionArgs((prev) => ({ ...prev, [key]: arg }))}
-                resetSignal={stepResetSignal}
-                title={t("paramsFields.title", "Parâmetros de {{name}}", {
-                  name: radialOptionFunctionTarget.name,
-                })}
-              />
-            )}
-
-            <div className="flex gap-2 justify-end">
+            <div className="shrink-0 flex gap-2 justify-end px-4 py-3 border-t border-white/10">
               <button className="button-secondary" onClick={closeRadialOptionForm}>
                 {t("functionsSection.cancel", "Cancelar")}
               </button>
@@ -2861,296 +2876,296 @@ export default function StepListEditor({
           onMouseDown={closeGuiControlForm}
         >
           <div
-            className="bg-menu-dark rounded-lg shadow-lg p-4 flex flex-col gap-3 w-full max-w-lg max-h-[85vh] overflow-auto"
+            className="bg-menu-dark rounded-lg shadow-lg flex flex-col w-full max-w-lg max-h-[85vh] overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <span className="text-sm font-semibold">
+            <h2 className="shrink-0 px-4 pt-4 pb-3 border-b border-white/10 text-base font-semibold">
               {editingGuiControlId !== null
                 ? t("functionsSection.createGuiEditControlTitle", "Editar item")
                 : t("functionsSection.createGuiNewControlTitle", "Novo item")}
-            </span>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs opacity-70">
-                {t("functionsSection.createGuiControlTypeLabel", "Tipo de item")}
-              </label>
-              <select
-                className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 w-full text-sm appearance-none"
-                value={guiControlType}
-                onChange={(e) => setGuiControlType(e.target.value as GuiControlType)}
-              >
-                <option value="text">{t("functionsSection.guiControlTypeText", "Texto")}</option>
-                <option value="button">{t("functionsSection.guiControlTypeButton", "Botão")}</option>
-                <option value="edit">{t("functionsSection.guiControlTypeEdit", "Caixa de texto")}</option>
-                <option value="checkbox">
-                  {t("functionsSection.guiControlTypeCheckbox", "Caixa de seleção")}
-                </option>
-                <option value="dropdown">
-                  {t("functionsSection.guiControlTypeDropdown", "Lista suspensa")}
-                </option>
-                <option value="code">{t("functionsSection.guiControlTypeCode", "Código AHK personalizado")}</option>
-              </select>
-            </div>
-
-            {guiControlType === "code" && (
+            </h2>
+            <div className="flex flex-col gap-3 p-4 min-h-0 overflow-y-auto">
               <div className="flex flex-col gap-1">
                 <label className="text-xs opacity-70">
-                  {t("functionsSection.guiControlCodeLabel", "Código AHK")}
+                  {t("functionsSection.createGuiControlTypeLabel", "Tipo de item")}
                 </label>
-                <textarea
-                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full font-mono text-sm resize-y min-h-24"
-                  value={guiControlCode}
-                  onChange={(e) => setGuiControlCode(e.target.value)}
-                  placeholder={t(
-                    "functionsSection.guiControlCodePlaceholder",
-                    'Ex: {{varName}}.Add("Progress", "w200 h20", 50)'
-                  ).replace("{{varName}}", stepGuiTitle.trim() ? guiVarNameFromTitle(stepGuiTitle.trim()) : "gui")}
-                  spellCheck={false}
-                  wrap="off"
-                  rows={4}
-                  autoFocus
-                />
-                <span className="text-xs opacity-60">
-                  {t(
-                    "functionsSection.guiControlCodeHint",
-                    "Inserido tal como escrito, logo após a criação da janela. Use a variável {{name}} para referenciá-la.",
-                    { name: stepGuiTitle.trim() ? guiVarNameFromTitle(stepGuiTitle.trim()) : "gui_..." }
-                  )}
-                </span>
+                <select
+                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 w-full text-sm appearance-none"
+                  value={guiControlType}
+                  onChange={(e) => setGuiControlType(e.target.value as GuiControlType)}
+                >
+                  <option value="text">{t("functionsSection.guiControlTypeText", "Texto")}</option>
+                  <option value="button">{t("functionsSection.guiControlTypeButton", "Botão")}</option>
+                  <option value="edit">{t("functionsSection.guiControlTypeEdit", "Caixa de texto")}</option>
+                  <option value="checkbox">
+                    {t("functionsSection.guiControlTypeCheckbox", "Caixa de seleção")}
+                  </option>
+                  <option value="dropdown">
+                    {t("functionsSection.guiControlTypeDropdown", "Lista suspensa")}
+                  </option>
+                  <option value="code">{t("functionsSection.guiControlTypeCode", "Código AHK personalizado")}</option>
+                </select>
               </div>
-            )}
 
-            {(guiControlType === "text" || guiControlType === "button" || guiControlType === "checkbox") && (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs opacity-70">
-                  {guiControlType === "checkbox"
-                    ? t("functionsSection.guiControlLabelLabel", "Texto da caixa de seleção")
-                    : t("functionsSection.guiControlTextLabel", "Texto")}
-                </label>
-                <input
-                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                  value={guiControlText}
-                  onChange={(e) => setGuiControlText(e.target.value)}
-                  placeholder={t("functionsSection.guiControlTextPlaceholder", "Ex: Confirmar")}
-                  autoFocus
-                />
-              </div>
-            )}
-
-            {guiControlType === "button" && (
-              <>
+              {guiControlType === "code" && (
                 <div className="flex flex-col gap-1">
                   <label className="text-xs opacity-70">
-                    {t("functionsSection.selectStepFunction", "Selecione uma função")}
+                    {t("functionsSection.guiControlCodeLabel", "Código AHK")}
                   </label>
+                  <textarea
+                    className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full font-mono text-sm resize-y min-h-24"
+                    value={guiControlCode}
+                    onChange={(e) => setGuiControlCode(e.target.value)}
+                    placeholder={t(
+                      "functionsSection.guiControlCodePlaceholder",
+                      'Ex: {{varName}}.Add("Progress", "w200 h20", 50)'
+                    ).replace("{{varName}}", stepGuiTitle.trim() ? guiVarNameFromTitle(stepGuiTitle.trim()) : "gui")}
+                    spellCheck={false}
+                    wrap="off"
+                    rows={4}
+                    autoFocus
+                  />
+                  <span className="text-xs opacity-60">
+                    {t(
+                      "functionsSection.guiControlCodeHint",
+                      "Inserido tal como escrito, logo após a criação da janela. Use a variável {{name}} para referenciá-la.",
+                      { name: stepGuiTitle.trim() ? guiVarNameFromTitle(stepGuiTitle.trim()) : "gui_..." }
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {(guiControlType === "text" || guiControlType === "button" || guiControlType === "checkbox") && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs opacity-70">
+                    {guiControlType === "checkbox"
+                      ? t("functionsSection.guiControlLabelLabel", "Texto da caixa de seleção")
+                      : t("functionsSection.guiControlTextLabel", "Texto")}
+                  </label>
+                  <input
+                    className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                    value={guiControlText}
+                    onChange={(e) => setGuiControlText(e.target.value)}
+                    placeholder={t("functionsSection.guiControlTextPlaceholder", "Ex: Confirmar")}
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {guiControlType === "button" && (
+                <>
                   <FunctionPicker
                     items={menuItemPickerItems}
                     value={guiControlSelection}
                     onChange={selectGuiControlTarget}
                     placeholder={t("functionsSection.selectStepFunction", "Selecione uma função")}
+                    tone="target"
                     className="w-full"
                   />
-                </div>
 
-                {guiControlBuiltin && guiControlBuiltin.params.length > 0 && (
-                  <StepArgsFields
-                    targetId={guiControlBuiltin.id}
-                    params={guiControlBuiltin.params}
-                    headerParams={headerParams}
-                    localVariables={localVariables}
-                    globalVariables={globalVariables}
-                    values={guiControlBuiltinArgs}
-                    onChange={(key, arg) => setGuiControlBuiltinArgs((prev) => ({ ...prev, [key]: arg }))}
-                    resetSignal={stepResetSignal}
-                    title={t("paramsFields.title", "Parâmetros de {{name}}", {
-                      name: tFunctionName(t, guiControlBuiltin),
-                    })}
-                  />
-                )}
+                  {guiControlBuiltin && guiControlBuiltin.params.length > 0 && (
+                    <StepArgsFields
+                      targetId={guiControlBuiltin.id}
+                      params={guiControlBuiltin.params}
+                      headerParams={headerParams}
+                      localVariables={localVariables}
+                      globalVariables={globalVariables}
+                      values={guiControlBuiltinArgs}
+                      onChange={(key, arg) => setGuiControlBuiltinArgs((prev) => ({ ...prev, [key]: arg }))}
+                      resetSignal={stepResetSignal}
+                      title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                        name: tFunctionName(t, guiControlBuiltin),
+                      })}
+                    />
+                  )}
 
-                {guiControlFunctionTarget && guiControlFunctionCallParams.length > 0 && (
-                  <StepArgsFields
-                    params={guiControlFunctionCallParams}
-                    headerParams={headerParams}
-                    localVariables={localVariables}
-                    globalVariables={globalVariables}
-                    values={guiControlFunctionArgs}
-                    onChange={(key, arg) => setGuiControlFunctionArgs((prev) => ({ ...prev, [key]: arg }))}
-                    resetSignal={stepResetSignal}
-                    title={t("paramsFields.title", "Parâmetros de {{name}}", {
-                      name: guiControlFunctionTarget.name,
-                    })}
-                  />
-                )}
-              </>
-            )}
+                  {guiControlFunctionTarget && guiControlFunctionCallParams.length > 0 && (
+                    <StepArgsFields
+                      params={guiControlFunctionCallParams}
+                      headerParams={headerParams}
+                      localVariables={localVariables}
+                      globalVariables={globalVariables}
+                      values={guiControlFunctionArgs}
+                      onChange={(key, arg) => setGuiControlFunctionArgs((prev) => ({ ...prev, [key]: arg }))}
+                      resetSignal={stepResetSignal}
+                      title={t("paramsFields.title", "Parâmetros de {{name}}", {
+                        name: guiControlFunctionTarget.name,
+                      })}
+                    />
+                  )}
+                </>
+              )}
 
-            {guiControlType === "edit" && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs opacity-70">
-                    {t("functionsSection.guiControlInitialValueLabel", "Valor inicial")}
-                  </label>
-                  <input
-                    className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                    value={guiControlInitialValue}
-                    onChange={(e) => setGuiControlInitialValue(e.target.value)}
+              {guiControlType === "edit" && (
+                <>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs opacity-70">
+                      {t("functionsSection.guiControlInitialValueLabel", "Valor inicial")}
+                    </label>
+                    <input
+                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                      value={guiControlInitialValue}
+                      onChange={(e) => setGuiControlInitialValue(e.target.value)}
+                    />
+                  </div>
+                  <RecordOptionCheckbox
+                    checked={guiControlMultiline}
+                    onChange={setGuiControlMultiline}
+                    label={t("functionsSection.guiControlMultiline", "Múltiplas linhas")}
                   />
-                </div>
+                </>
+              )}
+
+              {guiControlType === "checkbox" && (
                 <RecordOptionCheckbox
-                  checked={guiControlMultiline}
-                  onChange={setGuiControlMultiline}
-                  label={t("functionsSection.guiControlMultiline", "Múltiplas linhas")}
+                  checked={guiControlChecked}
+                  onChange={setGuiControlChecked}
+                  label={t("functionsSection.guiControlCheckedByDefault", "Marcada por padrão")}
                 />
-              </>
-            )}
+              )}
 
-            {guiControlType === "checkbox" && (
-              <RecordOptionCheckbox
-                checked={guiControlChecked}
-                onChange={setGuiControlChecked}
-                label={t("functionsSection.guiControlCheckedByDefault", "Marcada por padrão")}
-              />
-            )}
-
-            {guiControlType === "dropdown" && (
-              <div className="flex flex-col gap-1.5 bg-menu-secondary/60 rounded-lg p-2">
-                <span className="text-xs opacity-70">
-                  {t("functionsSection.guiControlOptionsLabel", "Opções da lista")}
-                </span>
-                {guiControlOptions.length > 0 && (
-                  <ul className="flex flex-wrap gap-1">
-                    {guiControlOptions.map((option, index) => (
-                      <li
-                        key={`${option}-${index}`}
-                        className="flex items-center gap-1 bg-menu-secondary rounded px-2 py-1 text-xs"
-                      >
-                        {option}
-                        <button
-                          type="button"
-                          className="opacity-60 hover:opacity-100 cursor-pointer"
-                          onClick={() => removeGuiControlOption(index)}
+              {guiControlType === "dropdown" && (
+                <div className="flex flex-col gap-1.5 bg-menu-secondary/60 rounded-lg p-2">
+                  <span className="text-xs opacity-70">
+                    {t("functionsSection.guiControlOptionsLabel", "Opções da lista")}
+                  </span>
+                  {guiControlOptions.length > 0 && (
+                    <ul className="flex flex-wrap gap-1">
+                      {guiControlOptions.map((option, index) => (
+                        <li
+                          key={`${option}-${index}`}
+                          className="flex items-center gap-1 bg-menu-secondary rounded px-2 py-1 text-xs"
                         >
-                          ×
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                          {option}
+                          <button
+                            type="button"
+                            className="px-1 leading-none opacity-60 hover:opacity-100 cursor-pointer"
+                            aria-label={t("functionsSection.remove", "Remover")}
+                            title={t("functionsSection.remove", "Remover")}
+                            onClick={() => removeGuiControlOption(index)}
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      className="bg-menu-secondary rounded-lg px-2 py-1.5 outline-none text-sm flex-1"
+                      value={guiControlNewOption}
+                      onChange={(e) => setGuiControlNewOption(e.target.value)}
+                      placeholder={t("functionsSection.paramOptionPlaceholder", "Ex: Rápido")}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addGuiControlOption();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="button-secondary button-compact py-1 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                      disabled={!guiControlNewOption.trim()}
+                      onClick={addGuiControlOption}
+                    >
+                      {t("functionsSection.addParamOption", "Adicionar opção")}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {guiControlType !== "code" && (
                 <div className="flex gap-2">
-                  <input
-                    className="bg-menu-secondary rounded-lg px-2 py-1.5 outline-none text-sm flex-1"
-                    value={guiControlNewOption}
-                    onChange={(e) => setGuiControlNewOption(e.target.value)}
-                    placeholder={t("functionsSection.paramOptionPlaceholder", "Ex: Rápido")}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addGuiControlOption();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="button-secondary py-1 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
-                    disabled={!guiControlNewOption.trim()}
-                    onClick={addGuiControlOption}
-                  >
-                    {t("functionsSection.addParamOption", "Adicionar opção")}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {guiControlType !== "code" && (
-              <div className="flex gap-2">
-                <div className="flex flex-col gap-1 flex-1">
-                  <label className="text-xs opacity-70">
-                    {t("functionsSection.createGuiXLabel", "Posição X")}
-                  </label>
-                  <input
-                    type="number"
-                    className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                    value={guiControlX}
-                    onChange={(e) => setGuiControlX(e.target.value)}
-                    placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
-                  />
-                </div>
-                <div className="flex flex-col gap-1 flex-1">
-                  <label className="text-xs opacity-70">
-                    {t("functionsSection.createGuiYLabel", "Posição Y")}
-                  </label>
-                  <input
-                    type="number"
-                    className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                    value={guiControlY}
-                    onChange={(e) => setGuiControlY(e.target.value)}
-                    placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
-                  />
-                </div>
-              </div>
-            )}
-
-            {guiControlType !== "checkbox" && guiControlType !== "code" && (
-              <div className="flex gap-2">
-                <div className="flex flex-col gap-1 flex-1">
-                  <label className="text-xs opacity-70">
-                    {t("functionsSection.createGuiWidthLabel", "Largura")}
-                  </label>
-                  <input
-                    type="number"
-                    className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                    value={guiControlWidth}
-                    onChange={(e) => setGuiControlWidth(e.target.value)}
-                    placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
-                  />
-                </div>
-                {(guiControlType === "button" || guiControlType === "edit") && (
                   <div className="flex flex-col gap-1 flex-1">
                     <label className="text-xs opacity-70">
-                      {t("functionsSection.createGuiHeightLabel", "Altura")}
+                      {t("functionsSection.createGuiXLabel", "Posição X")}
                     </label>
                     <input
                       type="number"
                       className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
-                      value={guiControlHeight}
-                      onChange={(e) => setGuiControlHeight(e.target.value)}
+                      value={guiControlX}
+                      onChange={(e) => setGuiControlX(e.target.value)}
                       placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
                     />
                   </div>
-                )}
-              </div>
-            )}
-
-            {guiControlType !== "button" && guiControlType !== "code" && (
-              <div className="flex flex-col gap-1.5">
-                <RecordOptionCheckbox
-                  checked={guiControlUseColor}
-                  onChange={setGuiControlUseColor}
-                  label={t("functionsSection.guiControlUseColor", "Usar cor de texto personalizada")}
-                />
-                {guiControlUseColor && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-1 flex-1">
+                    <label className="text-xs opacity-70">
+                      {t("functionsSection.createGuiYLabel", "Posição Y")}
+                    </label>
                     <input
-                      type="color"
-                      className="w-9 h-9 rounded cursor-pointer bg-menu-secondary border border-white/10"
-                      value={`#${guiControlColor}`}
-                      onChange={(e) => setGuiControlColor(e.target.value.slice(1))}
-                    />
-                    <input
-                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none text-sm font-mono w-28"
-                      value={guiControlColor}
-                      onChange={(e) =>
-                        setGuiControlColor(e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))
-                      }
-                      placeholder="ffffff"
+                      type="number"
+                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                      value={guiControlY}
+                      onChange={(e) => setGuiControlY(e.target.value)}
+                      placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
                     />
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
 
-            <div className="flex gap-2 justify-end">
+              {guiControlType !== "checkbox" && guiControlType !== "code" && (
+                <div className="flex gap-2">
+                  <div className="flex flex-col gap-1 flex-1">
+                    <label className="text-xs opacity-70">
+                      {t("functionsSection.createGuiWidthLabel", "Largura")}
+                    </label>
+                    <input
+                      type="number"
+                      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                      value={guiControlWidth}
+                      onChange={(e) => setGuiControlWidth(e.target.value)}
+                      placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
+                    />
+                  </div>
+                  {(guiControlType === "button" || guiControlType === "edit") && (
+                    <div className="flex flex-col gap-1 flex-1">
+                      <label className="text-xs opacity-70">
+                        {t("functionsSection.createGuiHeightLabel", "Altura")}
+                      </label>
+                      <input
+                        type="number"
+                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                        value={guiControlHeight}
+                        onChange={(e) => setGuiControlHeight(e.target.value)}
+                        placeholder={t("functionsSection.createGuiAutoPlaceholder", "Automático")}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {guiControlType !== "button" && guiControlType !== "code" && (
+                <div className="flex flex-col gap-1.5">
+                  <RecordOptionCheckbox
+                    checked={guiControlUseColor}
+                    onChange={setGuiControlUseColor}
+                    label={t("functionsSection.guiControlUseColor", "Usar cor de texto personalizada")}
+                  />
+                  {guiControlUseColor && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        className="w-9 h-9 rounded cursor-pointer bg-menu-secondary border border-white/10"
+                        value={`#${guiControlColor}`}
+                        onChange={(e) => setGuiControlColor(e.target.value.slice(1))}
+                      />
+                      <input
+                        className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none h-9 text-sm font-mono w-28"
+                        value={guiControlColor}
+                        onChange={(e) =>
+                          setGuiControlColor(e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))
+                        }
+                        placeholder="ffffff"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+
+            <div className="shrink-0 flex gap-2 justify-end px-4 py-3 border-t border-white/10">
               <button className="button-secondary" onClick={closeGuiControlForm}>
                 {t("functionsSection.cancel", "Cancelar")}
               </button>

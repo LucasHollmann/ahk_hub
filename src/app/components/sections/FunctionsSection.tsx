@@ -292,11 +292,11 @@ export default function FunctionsSection({
             className="bg-menu-dark rounded-lg shadow-lg p-4 flex flex-col gap-3 w-full max-w-xl"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <span className="text-sm font-semibold">
+            <h2 className="pb-2 border-b border-white/10 text-base font-semibold">
               {editingId !== null
                 ? t("functionsSection.editTitle", "Editar função")
                 : t("functionsSection.newTitle", "Nova função")}
-            </span>
+            </h2>
 
             <div className="flex flex-col gap-2">
               <span className="text-sm opacity-70">
@@ -334,11 +334,11 @@ export default function FunctionsSection({
               mode === "steps" ? "max-w-6xl" : "max-w-2xl"
             }`}
           >
-            <span className="text-base font-semibold">
+            <h2 className="text-base font-semibold">
               {editingId !== null
                 ? t("functionsSection.editTitle", "Editar função")
                 : t("functionsSection.newTitle", "Nova função")}
-            </span>
+            </h2>
 
             {mode === "code" ? (
               <>
@@ -469,7 +469,7 @@ export default function FunctionsSection({
                                 )
                               </span>
                               <button
-                                className="button-secondary py-0.5 px-2 text-xs"
+                                className="button-secondary button-compact py-0.5 px-2 text-xs"
                                 onClick={() => removeHeaderParam(p.key)}
                               >
                                 {t("functionsSection.remove", "Remover")}
@@ -481,7 +481,7 @@ export default function FunctionsSection({
 
                       <div className="flex flex-wrap gap-1.5 items-center">
                         <input
-                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-28 text-sm"
+                          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-28 h-9 text-sm"
                           value={newParamName}
                           onChange={(e) => setNewParamName(e.target.value)}
                           placeholder={t("functionsSection.paramNamePlaceholder", "Ex: texto")}
@@ -506,7 +506,7 @@ export default function FunctionsSection({
                         </select>
                         <button
                           type="button"
-                          className="button-secondary py-1.5 px-2.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="button-secondary button-compact py-1.5 px-2.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
                           disabled={
                             !isValidAhkIdentifier(trimmedParamName) ||
                             headerParams.some((p) => p.key === trimmedParamName) ||
@@ -541,7 +541,9 @@ export default function FunctionsSection({
                                   {o.label}
                                   <button
                                     type="button"
-                                    className="opacity-60 hover:opacity-100 cursor-pointer"
+                                    className="px-1 leading-none opacity-60 hover:opacity-100 cursor-pointer"
+                                    aria-label={t("functionsSection.remove", "Remover")}
+                                    title={t("functionsSection.remove", "Remover")}
                                     onClick={() => removeNewParamOption(o.value)}
                                   >
                                     ×
@@ -565,7 +567,7 @@ export default function FunctionsSection({
                             />
                             <button
                               type="button"
-                              className="button-secondary py-1 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="button-secondary button-compact py-1 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
                               disabled={
                                 !newOptionValue.trim() ||
                                 newParamOptions.some((o) => o.value === newOptionValue.trim())
@@ -597,7 +599,7 @@ export default function FunctionsSection({
               </>
             )}
 
-            <div className="flex gap-2 justify-end">
+            <div className="sticky bottom-0 z-10 -mx-5 px-5 py-3 bg-menu-dark border-t border-white/10 flex gap-2 justify-end">
               <button className="button-secondary" onClick={closeForm}>
                 {t("functionsSection.cancel", "Cancelar")}
               </button>
@@ -615,7 +617,7 @@ export default function FunctionsSection({
 
       <div className="flex flex-col gap-2 overflow-auto">
         {functions.length === 0 && (
-          <p className="opacity-60 text-sm">
+          <p className="empty-state">
             {t("functionsSection.emptyCustomList", "Nenhuma função personalizada cadastrada.")}
           </p>
         )}
@@ -647,15 +649,19 @@ export default function FunctionsSection({
                 ⠿
               </span>
               <div className="flex flex-col min-w-0">
-                <span className="font-semibold truncate">{f.name}</span>
-                {f.description && <span className="text-sm opacity-70 truncate">{f.description}</span>}
+                <span className="font-semibold truncate" title={f.name}>{f.name}</span>
+                {f.description && (
+                  <span className="text-sm opacity-70 truncate" title={f.description}>
+                    {f.description}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex gap-2">
-              <button className="button-secondary py-1 px-3 text-sm" onClick={() => startEdit(f)}>
+              <button className="button-secondary button-compact py-1 px-3 text-sm" onClick={() => startEdit(f)}>
                 {t("functionsSection.edit", "Editar")}
               </button>
-              <button className="button-secondary py-1 px-3 text-sm" onClick={() => onRemove(f.id)}>
+              <button className="button-secondary button-compact py-1 px-3 text-sm" onClick={() => onRemove(f.id)}>
                 {t("functionsSection.remove", "Remover")}
               </button>
             </div>

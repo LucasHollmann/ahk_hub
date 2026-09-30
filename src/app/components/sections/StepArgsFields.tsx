@@ -184,7 +184,9 @@ export default function StepArgsFields({
             {hasCandidates && (
               <div className="flex justify-end">
                 <select
-                  className="bg-menu-secondary rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none"
+                  className="bg-menu-secondary rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none select-compact"
+                  aria-label={t("stepArgsFields.sourceLabel", "Origem do valor")}
+                  title={t("stepArgsFields.sourceLabel", "Origem do valor")}
                   value={selection}
                   onChange={(e) => applyCoordinateSelection(pair, e.target.value)}
                 >
@@ -271,7 +273,9 @@ export default function StepArgsFields({
               </label>
               {hasCandidates && (
                 <select
-                  className="bg-menu-secondary rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none"
+                  className="bg-menu-secondary rounded px-2 py-1 outline-none cursor-pointer text-xs appearance-none select-compact"
+                  aria-label={t("stepArgsFields.sourceLabel", "Origem do valor")}
+                  title={t("stepArgsFields.sourceLabel", "Origem do valor")}
                   value={sourceSelectValue(arg)}
                   onChange={(e) => applySourceSelection(param, e.target.value)}
                 >
@@ -319,6 +323,7 @@ export default function StepArgsFields({
                 <span className="relative flex items-center justify-center">
                   <input
                     type="checkbox"
+                    aria-label={label}
                     className="peer appearance-none w-4 h-4 rounded border border-white/25 bg-transparent checked:bg-(--main) checked:border-(--main) transition-colors"
                     checked={Boolean(literalValue)}
                     onChange={(e) => setLiteral(param.key, e.target.checked)}
@@ -340,7 +345,7 @@ export default function StepArgsFields({
               </label>
             ) : param.type === "select" ? (
               <select
-                className="bg-menu-secondary rounded-lg px-3 py-2 outline-none h-10 w-full cursor-pointer appearance-none"
+                className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none h-9 w-full text-sm cursor-pointer appearance-none"
                 value={String(literalValue ?? "")}
                 onChange={(e) => setLiteral(param.key, e.target.value)}
               >
@@ -361,7 +366,7 @@ export default function StepArgsFields({
               <>
                 <input
                   type={param.type === "number" ? "number" : "text"}
-                  className="bg-menu-secondary rounded-lg px-3 py-2 outline-none h-10 w-full"
+                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none h-9 w-full text-sm"
                   value={String(literalValue ?? "")}
                   onChange={(e) =>
                     setLiteral(param.key, param.type === "number" ? Number(e.target.value) : e.target.value)

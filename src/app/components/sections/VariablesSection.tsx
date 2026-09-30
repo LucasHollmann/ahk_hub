@@ -46,7 +46,9 @@ function ArrayValueField({
               {item}
               <button
                 type="button"
-                className="opacity-60 hover:opacity-100 cursor-pointer"
+                className="px-1 leading-none opacity-60 hover:opacity-100 cursor-pointer"
+                aria-label={t("functionsSection.remove", "Remover")}
+                title={t("functionsSection.remove", "Remover")}
                 onClick={() => onChange(items.filter((_, i) => i !== index))}
               >
                 ×
@@ -70,7 +72,7 @@ function ArrayValueField({
         />
         <button
           type="button"
-          className="button-secondary py-1 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+          className="button-secondary button-compact py-1 px-2 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={!newItem.trim()}
           onClick={addItem}
         >
@@ -122,7 +124,7 @@ function ValueField({
   return (
     <input
       type={type === "number" ? "number" : "text"}
-      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+      className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full h-9 text-sm"
       value={String(value)}
       onChange={(e) => onChange(type === "number" ? Number(e.target.value) : e.target.value)}
     />
@@ -230,7 +232,7 @@ export default function VariablesSection({
 
       <div className="flex flex-col gap-2 overflow-auto">
         {variables.length === 0 && (
-          <p className="opacity-60 text-sm">
+          <p className="empty-state">
             {t("variablesSection.emptyVariables", "Nenhuma variável cadastrada.")}
           </p>
         )}
@@ -239,19 +241,21 @@ export default function VariablesSection({
             key={v.id}
             className="flex items-center justify-between bg-menu-secondary rounded-lg px-4 py-2"
           >
-            <div className="flex flex-col">
-              <span className="font-semibold font-mono text-sm">{v.name}</span>
-              <span className="text-xs opacity-70">
+            <div className="flex flex-col min-w-0">
+              <span className="font-semibold font-mono text-sm truncate" title={v.name}>
+                {v.name}
+              </span>
+              <span className="text-xs opacity-70 truncate">
                 {variableTypeLabel(t, v.type)} · {t("variablesSection.initialValue", "valor inicial")}:{" "}
                 {initialValueLabel(v)}
               </span>
             </div>
-            <div className="flex gap-2">
-              <button className="button-secondary py-1 px-3 text-sm" onClick={() => startEditVar(v)}>
+            <div className="flex gap-2 shrink-0">
+              <button className="button-secondary button-compact py-1 px-3 text-sm" onClick={() => startEditVar(v)}>
                 {t("functionsSection.edit", "Editar")}
               </button>
               <button
-                className="button-secondary py-1 px-3 text-sm"
+                className="button-secondary button-compact py-1 px-3 text-sm"
                 onClick={() => onRemoveVariable(v.id)}
               >
                 {t("functionsSection.remove", "Remover")}
@@ -267,77 +271,79 @@ export default function VariablesSection({
           onMouseDown={closeVarForm}
         >
           <div
-            className="bg-menu-dark rounded-lg shadow-lg p-4 flex flex-col gap-3 w-full max-w-sm"
+            className="bg-menu-dark rounded-lg shadow-lg flex flex-col w-full max-w-sm max-h-[85vh] overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <span className="text-sm font-semibold">
+            <h2 className="shrink-0 px-4 pt-4 pb-3 border-b border-white/10 text-base font-semibold">
               {editingVarId !== null
                 ? t("variablesSection.editVariable", "Editar variável")
                 : t("variablesSection.newVariable", "Nova variável")}
-            </span>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs opacity-70">{t("variablesSection.nameLabel", "Nome")}</label>
-              <input
-                className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full"
-                value={varName}
-                onChange={(e) => setVarName(e.target.value)}
-                placeholder={t("variablesSection.namePlaceholder", "Ex: contador")}
-                autoFocus
-              />
-              {trimmedVarName !== "" && !isValidAhkIdentifier(trimmedVarName) && (
-                <span className="text-xs text-red-400">
-                  {t(
-                    "functionsSection.invalidName",
-                    "Nome inválido: use apenas letras, números e _, sem começar com número."
-                  )}
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs opacity-70">{t("variablesSection.typeLabel", "Tipo")}</label>
-              <select
-                className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 appearance-none"
-                value={varType}
-                onChange={(e) => {
-                  const nextType = e.target.value as VariableType;
-                  setVarType(nextType);
-                  setVarInitialValue(defaultVariableValue(nextType));
-                }}
-              >
-                <option value="text">{t("functionsSection.paramTypeText", "Texto")}</option>
-                <option value="number">{t("functionsSection.paramTypeNumber", "Número")}</option>
-                <option value="boolean">{t("functionsSection.paramTypeBoolean", "Booleano")}</option>
-                <option value="array">{t("functionsSection.paramTypeArray", "Array")}</option>
-                <option value="coordinate">
-                  {t("functionsSection.paramTypeCoordinate", "Coordenada na tela")}
-                </option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-xs opacity-70">
-                {varType === "array"
-                  ? t("variablesSection.arrayItemsLabel", "Itens iniciais do array")
-                  : t("variablesSection.initialValueLabel", "Valor inicial")}
-              </label>
-              {varType === "array" ? (
-                <ArrayValueField
-                  items={Array.isArray(varInitialValue) ? varInitialValue : []}
-                  onChange={setVarInitialValue}
+            </h2>
+            <div className="flex flex-col gap-3 p-4 min-h-0 overflow-y-auto">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs opacity-70">{t("variablesSection.nameLabel", "Nome")}</label>
+                <input
+                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full"
+                  value={varName}
+                  onChange={(e) => setVarName(e.target.value)}
+                  placeholder={t("variablesSection.namePlaceholder", "Ex: contador")}
+                  autoFocus
                 />
-              ) : varType === "coordinate" ? (
-                <CoordinateLiteralFields
-                  value={toCoordinateLiteral(varInitialValue)}
-                  onChange={(point: CoordinateLiteral) => setVarInitialValue(point)}
-                />
-              ) : (
-                <ValueField type={varType} value={varInitialValue as string | number | boolean} onChange={setVarInitialValue} />
-              )}
+                {trimmedVarName !== "" && !isValidAhkIdentifier(trimmedVarName) && (
+                  <span className="text-xs text-red-400">
+                    {t(
+                      "functionsSection.invalidName",
+                      "Nome inválido: use apenas letras, números e _, sem começar com número."
+                    )}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs opacity-70">{t("variablesSection.typeLabel", "Tipo")}</label>
+                <select
+                  className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none cursor-pointer h-9 appearance-none"
+                  value={varType}
+                  onChange={(e) => {
+                    const nextType = e.target.value as VariableType;
+                    setVarType(nextType);
+                    setVarInitialValue(defaultVariableValue(nextType));
+                  }}
+                >
+                  <option value="text">{t("functionsSection.paramTypeText", "Texto")}</option>
+                  <option value="number">{t("functionsSection.paramTypeNumber", "Número")}</option>
+                  <option value="boolean">{t("functionsSection.paramTypeBoolean", "Booleano")}</option>
+                  <option value="array">{t("functionsSection.paramTypeArray", "Array")}</option>
+                  <option value="coordinate">
+                    {t("functionsSection.paramTypeCoordinate", "Coordenada na tela")}
+                  </option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs opacity-70">
+                  {varType === "array"
+                    ? t("variablesSection.arrayItemsLabel", "Itens iniciais do array")
+                    : t("variablesSection.initialValueLabel", "Valor inicial")}
+                </label>
+                {varType === "array" ? (
+                  <ArrayValueField
+                    items={Array.isArray(varInitialValue) ? varInitialValue : []}
+                    onChange={setVarInitialValue}
+                  />
+                ) : varType === "coordinate" ? (
+                  <CoordinateLiteralFields
+                    value={toCoordinateLiteral(varInitialValue)}
+                    onChange={(point: CoordinateLiteral) => setVarInitialValue(point)}
+                  />
+                ) : (
+                  <ValueField type={varType} value={varInitialValue as string | number | boolean} onChange={setVarInitialValue} />
+                )}
+              </div>
+
             </div>
 
-            <div className="flex gap-2 justify-end">
+            <div className="shrink-0 flex gap-2 justify-end px-4 py-3 border-t border-white/10">
               <button className="button-secondary" onClick={closeVarForm}>
                 {t("functionsSection.cancel", "Cancelar")}
               </button>

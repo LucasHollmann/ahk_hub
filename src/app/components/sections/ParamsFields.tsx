@@ -56,14 +56,14 @@ export function CoordinateField({
       <div className="flex gap-2">
         <input
           type="number"
-          className="bg-menu-secondary rounded-lg px-3 py-2 outline-none h-10 w-full"
+          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none h-9 w-full text-sm"
           placeholder="X"
           value={String(values[pair.xKey] ?? "")}
           onChange={(e) => onChange(pair.xKey, Number(e.target.value))}
         />
         <input
           type="number"
-          className="bg-menu-secondary rounded-lg px-3 py-2 outline-none h-10 w-full"
+          className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none h-9 w-full text-sm"
           placeholder="Y"
           value={String(values[pair.yKey] ?? "")}
           onChange={(e) => onChange(pair.yKey, Number(e.target.value))}
@@ -156,7 +156,7 @@ export default function ParamsFields({ meta, values, onChange, resetSignal }: Pr
                 {param.optional ? t("common.optionalSuffix", " (opcional)") : ""}
               </label>
               <select
-                className="bg-menu-secondary rounded-lg px-3 py-2 outline-none h-10 w-full cursor-pointer appearance-none"
+                className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none h-9 w-full text-sm cursor-pointer appearance-none"
                 value={String(values[param.key] ?? "")}
                 onChange={(e) => onChange(param.key, e.target.value)}
               >
@@ -176,7 +176,7 @@ export default function ParamsFields({ meta, values, onChange, resetSignal }: Pr
               </label>
               <input
                 type={param.type === "number" ? "number" : "text"}
-                className="bg-menu-secondary rounded-lg px-3 py-2 outline-none h-10 w-full"
+                className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none h-9 w-full text-sm"
                 value={String(values[param.key] ?? "")}
                 onChange={(e) =>
                   onChange(
