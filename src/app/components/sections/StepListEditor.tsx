@@ -464,21 +464,37 @@ export default function StepListEditor({
     {
       value: "varaction:set",
       label: t("functionsSection.varActionSet", "Definir valor"),
+      description: t(
+        "functionsSection.varActionSetDescription",
+        "Atribui um novo valor a uma variável existente."
+      ),
       group: t("functionsSection.groupVariableActions", "Variáveis"),
     },
     {
       value: "varaction:increment",
       label: t("functionsSection.varActionIncrement", "Incrementar/decrementar"),
+      description: t(
+        "functionsSection.varActionIncrementDescription",
+        "Soma um valor à variável (use um número negativo para subtrair)."
+      ),
       group: t("functionsSection.groupVariableActions", "Variáveis"),
     },
     {
       value: "varaction:toggle",
       label: t("functionsSection.varActionToggle", "Alternar (toggle)"),
+      description: t(
+        "functionsSection.varActionToggleDescription",
+        "Inverte o valor da variável entre verdadeiro e falso."
+      ),
       group: t("functionsSection.groupVariableActions", "Variáveis"),
     },
     {
       value: "varaction:create",
       label: t("functionsSection.varActionCreate", "Criar variável"),
+      description: t(
+        "functionsSection.varActionCreateDescription",
+        "Cria uma variável nova, local ou global, com tipo e valor inicial."
+      ),
       group: t("functionsSection.groupVariableActions", "Variáveis"),
     },
     {

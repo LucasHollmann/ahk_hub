@@ -15,7 +15,7 @@ const OPERATORS: ConditionOperator[] = ["=", "!=", ">", "<", ">=", "<="];
 /** Rough grouping of the ready-made condition kinds, purely for the picker's columns. */
 const CONDITION_GROUPS: Record<string, string[]> = {
   mouse: ["condMousePosition", "condPixelColor"],
-  window: ["condActiveWindow", "condWindowExists", "condWindowState"],
+  window: ["condActiveWindow", "condActiveWindowNot", "condWindowExists", "condWindowState"],
   system: ["condKeyState", "condToggleKeyState", "condClipboard", "condIdleTime", "condTimeOfDay", "condVolume"],
 };
 
@@ -54,11 +54,19 @@ export default function ConditionFields({
     {
       value: "variable",
       label: t("functionsSection.conditionKindVariable", "Comparar variável"),
+      description: t(
+        "functionsSection.conditionKindVariableDescription",
+        "Compara o valor de uma variável com um valor fixo ou com outra variável."
+      ),
       group: t("functionsSection.conditionGroupBasic", "Básico"),
     },
     {
       value: "code",
       label: t("functionsSection.conditionKindCode", "Código puro"),
+      description: t(
+        "functionsSection.conditionKindCodeDescription",
+        "Escreve a condição diretamente como uma expressão do AutoHotkey."
+      ),
       group: t("functionsSection.conditionGroupBasic", "Básico"),
     },
     ...BUILTIN_CONDITIONS.map((meta) => ({

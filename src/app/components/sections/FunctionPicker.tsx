@@ -43,6 +43,16 @@ type PopupProps = {
   onClose: () => void;
 };
 
+/**
+ * Both the name and the description are truncated to keep the columns narrow, so the full
+ * text is offered as a native tooltip. Chromium renders the newline as a line break, which
+ * separates the title from its description.
+ */
+function itemTooltip(item: FunctionPickerItem): string {
+  return item.description ? `${item.label}
+${item.description}` : item.label;
+}
+
 export function FunctionPickerPopup({ items, value, onSelect, onClose }: PopupProps) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
@@ -109,6 +119,7 @@ export function FunctionPickerPopup({ items, value, onSelect, onClose }: PopupPr
                         className={`text-left px-2.5 py-1.5 rounded-lg cursor-pointer flex items-start gap-1.5 ${
                           item.value === value ? color.selected : "hover:bg-white/5"
                         }`}
+                        title={itemTooltip(item)}
                         onClick={() => onSelect(item.value)}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${color.dot}`} />

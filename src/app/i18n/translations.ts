@@ -137,9 +137,16 @@ export const en: Record<string, string> = {
   "functionsSection.groupCustom": "Custom",
   "functionsSection.groupVariableActions": "Variables",
   "functionsSection.varActionSet": "Set value",
+  "functionsSection.varActionSetDescription": "Assigns a new value to an existing variable.",
   "functionsSection.varActionIncrement": "Increment/decrement",
+  "functionsSection.varActionIncrementDescription":
+    "Adds a value to the variable (use a negative number to subtract).",
   "functionsSection.varActionToggle": "Toggle",
+  "functionsSection.varActionToggleDescription":
+    "Flips the variable's value between true and false.",
   "functionsSection.varActionCreate": "Create variable",
+  "functionsSection.varActionCreateDescription":
+    "Creates a new local or global variable, with a type and an initial value.",
   "functionsSection.varActionPromptInput": "Ask user for text (InputBox)",
   "functionsSection.varActionPromptInputDescription":
     "Opens a box asking for text and stores what was typed into a variable.",
@@ -315,7 +322,11 @@ export const en: Record<string, string> = {
     'No selector available — create an "Open circular quick selector" step first.',
   "functionsSection.conditionKindLabel": "Condition type",
   "functionsSection.conditionKindVariable": "Compare a variable",
+  "functionsSection.conditionKindVariableDescription":
+    "Compares a variable's value against a fixed value or another variable.",
   "functionsSection.conditionKindCode": "Raw code",
+  "functionsSection.conditionKindCodeDescription":
+    "Writes the condition directly as an AutoHotkey expression.",
   "functionsSection.conditionTargetLabel": "Variable",
   "functionsSection.conditionOperatorLabel": "Operator",
   "functionsSection.conditionValueLabel": "Compare to",
@@ -563,6 +574,12 @@ export const en: Record<string, string> = {
   "functions.condActiveWindow.name": "Active window contains",
   "functions.condActiveWindow.description": "Checks whether the active window's title contains a text.",
   "functions.condActiveWindow.params.titleContains.label": "Text the title must contain",
+
+  // functions.condActiveWindowNot
+  "functions.condActiveWindowNot.name": "Active window does not contain",
+  "functions.condActiveWindowNot.description":
+    "Checks whether the active window's title does not contain a text.",
+  "functions.condActiveWindowNot.params.titleContains.label": "Text the title must not contain",
 
   // functions.condWindowExists
   "functions.condWindowExists.name": "Window exists",

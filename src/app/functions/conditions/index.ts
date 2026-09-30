@@ -1,4 +1,5 @@
 import { meta as activeWindowMeta } from "./activeWindow";
+import { meta as activeWindowNotMeta } from "./activeWindowNot";
 import { meta as windowExistsMeta } from "./windowExists";
 import { meta as windowStateMeta } from "./windowState";
 import { meta as keyStateMeta } from "./keyState";
@@ -14,6 +15,7 @@ import type { FunctionMeta } from "../types";
 /** Built-in, ready-to-use condition kinds (mouse/window/key/time/etc) selectable in a Loop/Conditional step's condition. */
 export const BUILTIN_CONDITIONS: FunctionMeta[] = [
   activeWindowMeta,
+  activeWindowNotMeta,
   windowExistsMeta,
   windowStateMeta,
   keyStateMeta,
