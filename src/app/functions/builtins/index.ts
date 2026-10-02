@@ -16,6 +16,7 @@ import { meta as mediaMeta } from "./media";
 import { meta as tooltipMeta } from "./tooltip";
 import { meta as trayTipMeta } from "./trayTip";
 import { meta as beepMeta } from "./beep";
+import { meta as clipboardMeta } from "./clipboard";
 import type { FunctionMeta } from "../types";
 
 export const BUILTIN_FUNCTIONS: FunctionMeta[] = [
@@ -37,4 +38,5 @@ export const BUILTIN_FUNCTIONS: FunctionMeta[] = [
   tooltipMeta,
   trayTipMeta,
   beepMeta,
+  clipboardMeta,
 ];

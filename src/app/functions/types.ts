@@ -28,6 +28,12 @@ export type HeaderParamDef = {
   type: HeaderParamType;
   /** Required when type is "select" — the choices offered to the user. */
   options?: ParamOption[];
+  /**
+   * Set on entries that can only be read, never assigned — a Gui input field (its value lives
+   * in the control, so a "definir variável" step can't target it) or a function's own header
+   * parameter. Pickers that choose a write target filter these out; value sources keep them.
+   */
+  readOnly?: boolean;
 };
 
 export type MathOperator = "+" | "-" | "*" | "/";

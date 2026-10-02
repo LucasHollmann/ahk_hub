@@ -144,6 +144,10 @@ export const en: Record<string, string> = {
   "functionsSection.varActionToggle": "Toggle",
   "functionsSection.varActionToggleDescription":
     "Flips the variable's value between true and false.",
+  "functionsSection.varActionConcat": "Concatenate text",
+  "functionsSection.varActionConcatDescription":
+    "Joins a text to the end of what the variable already holds.",
+  "functionsSection.varActionConcatValueLabel": "Text to append",
   "functionsSection.varActionCreate": "Create variable",
   "functionsSection.varActionCreateDescription":
     "Creates a new local or global variable, with a type and an initial value.",
@@ -254,6 +258,11 @@ export const en: Record<string, string> = {
   "functionsSection.guiControlMultiline": "Multiple lines",
   "functionsSection.guiControlCheckedByDefault": "Checked by default",
   "functionsSection.guiControlOptionsLabel": "List options",
+  "functionsSection.guiControlVarNameLabel": "Save as variable (optional)",
+  "functionsSection.guiControlVarNamePlaceholder": "e.g. name",
+  "functionsSection.guiControlVarNameHint":
+    "With a name, the field's current value becomes a read-only variable available to the next steps and to this window's buttons.",
+  "functionsSection.guiControlVarNameSummary": " → {{name}}",
   "functionsSection.guiControlTextSummary": 'Text "{{text}}"',
   "functionsSection.guiControlButtonSummary": 'Button "{{text}}" → {{target}}',
   "functionsSection.guiControlEditSummary": "Text box",
@@ -569,6 +578,18 @@ export const en: Record<string, string> = {
   "functions.beep.description": "Plays a short beep as audible feedback.",
   "functions.beep.params.frequency.label": "Frequency (Hz, optional — default 523)",
   "functions.beep.params.duration.label": "Duration (ms, optional — default 150)",
+
+  // functions.clipboard
+  "functions.clipboard.name": "Clipboard",
+  "functions.clipboard.description":
+    "Copies, pastes or writes a text to the clipboard — including pasting something without typing it.",
+  "functions.clipboard.params.action.label": "Action",
+  "functions.clipboard.params.action.options.set": "Set the text",
+  "functions.clipboard.params.action.options.setAndPaste": "Set the text and paste (Ctrl+V)",
+  "functions.clipboard.params.action.options.append": "Append to what's already there",
+  "functions.clipboard.params.action.options.copy": "Copy the current selection (Ctrl+C)",
+  "functions.clipboard.params.action.options.paste": "Paste (Ctrl+V)",
+  "functions.clipboard.params.text.label": "Text (only for set/append)",
 
   // functions.condActiveWindow
   "functions.condActiveWindow.name": "Active window contains",

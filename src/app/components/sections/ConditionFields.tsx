@@ -50,6 +50,13 @@ export default function ConditionFields({
   const kindSelection =
     condition.kind === "builtin" ? `builtin:${condition.conditionId}` : condition.kind;
 
+  /**
+   * Header parameters are read-only locals, so they can sit on the left of a comparison. A
+   * "coordinate" parameter can't: it reaches the function as a `keyX`/`keyY` pair, with no
+   * single value to compare.
+   */
+  const comparableHeaderParams = headerParams.filter((p) => p.type !== "coordinate");
+
   const kindPickerItems: FunctionPickerItem[] = [
     {
       value: "variable",
@@ -201,7 +208,9 @@ export default function ConditionFields({
             <label className="text-xs opacity-70">
               {t("functionsSection.conditionTargetLabel", "Variável")}
             </label>
-            {localVariables.length === 0 && globalVariables.length === 0 ? (
+            {comparableHeaderParams.length === 0 &&
+            localVariables.length === 0 &&
+            globalVariables.length === 0 ? (
               <p className="opacity-60 text-xs">
                 {t("functionsSection.noVariablesAvailable", "Nenhuma variável disponível — crie uma primeiro.")}
               </p>
@@ -214,6 +223,17 @@ export default function ConditionFields({
                 <option value="">
                   {t("functionsSection.selectVariablePlaceholder", "Selecione uma variável")}
                 </option>
+                {/* A header parameter is a read-only local for the rest of the function, so it can
+                    be compared here even though nothing can assign to it. */}
+                {comparableHeaderParams.length > 0 && (
+                  <optgroup label={t("stepArgsFields.groupHeaderParams", "Parâmetros do cabeçalho")}>
+                    {comparableHeaderParams.map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
                 {localVariables.length > 0 && (
                   <optgroup label={t("stepArgsFields.groupLocalVariables", "Variáveis locais")}>
                     {localVariables.map((v) => (

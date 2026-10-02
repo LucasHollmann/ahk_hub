@@ -24,6 +24,8 @@ export type VariableAction =
   | { action: "set"; targetName: string; value: AssignedValue }
   | { action: "increment"; targetName: string; amount: number }
   | { action: "toggle"; targetName: string }
+  /** Appends a value to the end of a text variable: `nome := nome . sobrenome`. */
+  | { action: "concat"; targetName: string; value: ArgSource }
   | {
       action: "create";
       targetName: string;
@@ -69,14 +71,34 @@ export type SerializedGuiControl =
       type: "edit";
       initialValue: string;
       multiline: boolean;
+      /** Names this field as a variable, so later steps can read what the user typed. */
+      varName?: string;
       x?: number;
       y?: number;
       width?: number;
       height?: number;
       color?: string;
     }
-  | { type: "checkbox"; label: string; checked: boolean; x?: number; y?: number; color?: string }
-  | { type: "dropdown"; options: string[]; x?: number; y?: number; width?: number; color?: string }
+  | {
+      type: "checkbox";
+      label: string;
+      checked: boolean;
+      /** Names this field as a variable, so later steps can read whether it's ticked. */
+      varName?: string;
+      x?: number;
+      y?: number;
+      color?: string;
+    }
+  | {
+      type: "dropdown";
+      options: string[];
+      /** Names this field as a variable, so later steps can read the selected option. */
+      varName?: string;
+      x?: number;
+      y?: number;
+      width?: number;
+      color?: string;
+    }
   /** Raw AHK code inserted verbatim, for adding controls the structured item form doesn't cover. */
   | { type: "code"; code: string };
 

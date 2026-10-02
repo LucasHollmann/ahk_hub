@@ -138,18 +138,26 @@ function guiControlSummary(t: Translate, control: GuiControl): string {
       target: targetLabel,
     });
   }
+  // Named input fields show the variable they feed, since that's what other steps will pick.
+  const asVariable = "varName" in control && control.varName
+    ? t("functionsSection.guiControlVarNameSummary", " → {{name}}", { name: control.varName })
+    : "";
   if (control.type === "edit") {
-    return t("functionsSection.guiControlEditSummary", "Caixa de texto");
+    return t("functionsSection.guiControlEditSummary", "Caixa de texto") + asVariable;
   }
   if (control.type === "checkbox") {
-    return t("functionsSection.guiControlCheckboxSummary", 'Caixa de seleção "{{label}}"', {
-      label: control.label,
-    });
+    return (
+      t("functionsSection.guiControlCheckboxSummary", 'Caixa de seleção "{{label}}"', {
+        label: control.label,
+      }) + asVariable
+    );
   }
   if (control.type === "dropdown") {
-    return t("functionsSection.guiControlDropdownSummary", "Lista suspensa ({{count}} opções)", {
-      count: control.options.length,
-    });
+    return (
+      t("functionsSection.guiControlDropdownSummary", "Lista suspensa ({{count}} opções)", {
+        count: control.options.length,
+      }) + asVariable
+    );
   }
   return t("functionsSection.guiControlCodeSummary", "Código AHK personalizado");
 }
@@ -213,6 +221,8 @@ export default function StepListEditor({
   const [guiControlType, setGuiControlType] = useState<GuiControlType>("text");
   const [guiControlText, setGuiControlText] = useState("");
   const [guiControlInitialValue, setGuiControlInitialValue] = useState("");
+  /** Name the field is saved under, so later steps can read its value. Empty means "don't expose it". */
+  const [guiControlVarName, setGuiControlVarName] = useState("");
   const [guiControlMultiline, setGuiControlMultiline] = useState(false);
   const [guiControlChecked, setGuiControlChecked] = useState(false);
   const [guiControlOptions, setGuiControlOptions] = useState<string[]>([]);
@@ -480,6 +490,15 @@ export default function StepListEditor({
       group: t("functionsSection.groupVariableActions", "Variáveis"),
     },
     {
+      value: "varaction:concat",
+      label: t("functionsSection.varActionConcat", "Concatenar texto"),
+      description: t(
+        "functionsSection.varActionConcatDescription",
+        "Junta um texto ao fim do que a variável já contém."
+      ),
+      group: t("functionsSection.groupVariableActions", "Variáveis"),
+    },
+    {
       value: "varaction:toggle",
       label: t("functionsSection.varActionToggle", "Alternar (toggle)"),
       description: t(
@@ -574,9 +593,11 @@ export default function StepListEditor({
   function matchesVarActionType(type: HeaderParamType): boolean {
     if (stepVarAction === "increment") return type === "number";
     if (stepVarAction === "toggle") return type === "boolean";
+    if (stepVarAction === "concat") return type === "text";
     return true;
   }
-  const localVarTargets = localVariables.filter((v) => matchesVarActionType(v.type));
+  // Read-only entries (Gui input fields) are value sources, not assignable variables.
+  const localVarTargets = localVariables.filter((v) => !v.readOnly && matchesVarActionType(v.type));
   const globalVarTargets = globalVariables.filter((v) => matchesVarActionType(v.type));
 
   function resetStepSelectionState() {
@@ -754,7 +775,7 @@ export default function StepListEditor({
     } else {
       setStepVarAction(step.action);
       setStepVarTargetName(step.targetName);
-      if (step.action === "set") setStepVarSetValue(step.value);
+      if (step.action === "set" || step.action === "concat") setStepVarSetValue(step.value);
       else if (step.action === "increment") setStepVarIncrementAmount(step.amount);
       else if (step.action === "create") {
         setStepVarCreateType(step.varType);
@@ -769,7 +790,7 @@ export default function StepListEditor({
   }
 
   const varStepReady =
-    stepVarAction === "set"
+    stepVarAction === "set" || stepVarAction === "concat"
       ? isValidAhkIdentifier(trimmedVarTargetName) &&
         (stepVarSetValue.kind !== "literal" || String(stepVarSetValue.value ?? "").trim() !== "")
       : stepVarAction === "increment" ||
@@ -801,6 +822,11 @@ export default function StepListEditor({
       const targetName = trimmedVarTargetName;
       if (stepVarAction === "set") {
         return { id: -1, kind: "variableAction", action: "set", targetName, value: stepVarSetValue };
+      }
+      if (stepVarAction === "concat") {
+        // A coordinate has no text to append to, and the target picker won't offer one.
+        if (stepVarSetValue.kind === "coordinate") return null;
+        return { id: -1, kind: "variableAction", action: "concat", targetName, value: stepVarSetValue };
       }
       if (stepVarAction === "increment") {
         return {
@@ -1134,6 +1160,7 @@ export default function StepListEditor({
     setGuiControlType("text");
     setGuiControlText("");
     setGuiControlInitialValue("");
+    setGuiControlVarName("");
     setGuiControlMultiline(false);
     setGuiControlChecked(false);
     setGuiControlOptions([]);
@@ -1186,11 +1213,14 @@ export default function StepListEditor({
       }
     } else if (control.type === "edit") {
       setGuiControlInitialValue(control.initialValue);
+      setGuiControlVarName(control.varName ?? "");
       setGuiControlMultiline(control.multiline);
     } else if (control.type === "checkbox") {
       setGuiControlText(control.label);
+      setGuiControlVarName(control.varName ?? "");
       setGuiControlChecked(control.checked);
     } else if (control.type === "dropdown") {
+      setGuiControlVarName(control.varName ?? "");
       setGuiControlOptions(control.options);
     } else {
       setGuiControlCode(control.code);
@@ -1240,6 +1270,8 @@ export default function StepListEditor({
     const height = parseDimension(guiControlHeight);
 
     const id = editingGuiControlId ?? -1;
+    const varName = guiControlVarName.trim();
+    const named = varName ? { varName } : {};
     let control: GuiControl;
     if (guiControlType === "text") {
       control = {
@@ -1271,6 +1303,7 @@ export default function StepListEditor({
         type: "edit",
         initialValue: guiControlInitialValue,
         multiline: guiControlMultiline,
+        ...named,
         ...(x !== undefined ? { x } : {}),
         ...(y !== undefined ? { y } : {}),
         ...(width !== undefined ? { width } : {}),
@@ -1283,6 +1316,7 @@ export default function StepListEditor({
         type: "checkbox",
         label: guiControlText.trim(),
         checked: guiControlChecked,
+        ...named,
         ...(x !== undefined ? { x } : {}),
         ...(y !== undefined ? { y } : {}),
         ...(guiControlUseColor ? { color: guiControlColor } : {}),
@@ -1292,6 +1326,7 @@ export default function StepListEditor({
         id,
         type: "dropdown",
         options: [...guiControlOptions],
+        ...named,
         ...(x !== undefined ? { x } : {}),
         ...(y !== undefined ? { y } : {}),
         ...(width !== undefined ? { width } : {}),
@@ -1719,11 +1754,13 @@ export default function StepListEditor({
                       </div>
                     )}
 
-                    {stepVarAction === "set" && !isCoordinateVarTarget && (
+                    {(stepVarAction === "set" || stepVarAction === "concat") && !isCoordinateVarTarget && (
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center justify-between gap-2">
                           <label className="text-xs opacity-70">
-                            {t("functionsSection.varActionValueLabel", "Novo valor")}
+                            {stepVarAction === "concat"
+                              ? t("functionsSection.varActionConcatValueLabel", "Texto a juntar no fim")
+                              : t("functionsSection.varActionValueLabel", "Novo valor")}
                           </label>
                           {(headerParams.length > 0 || localVariables.length > 0 || globalVariables.length > 0) && (
                             <select
@@ -3038,6 +3075,29 @@ export default function StepListEditor({
                   onChange={setGuiControlChecked}
                   label={t("functionsSection.guiControlCheckedByDefault", "Marcada por padrão")}
                 />
+              )}
+
+              {(guiControlType === "edit" ||
+                guiControlType === "checkbox" ||
+                guiControlType === "dropdown") && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs opacity-70">
+                    {t("functionsSection.guiControlVarNameLabel", "Salvar como variável (opcional)")}
+                  </label>
+                  <input
+                    className="bg-menu-secondary rounded-lg px-2.5 py-1.5 outline-none w-full text-sm"
+                    value={guiControlVarName}
+                    onChange={(e) => setGuiControlVarName(e.target.value)}
+                    placeholder={t("functionsSection.guiControlVarNamePlaceholder", "Ex: nome")}
+                    spellCheck={false}
+                  />
+                  <span className="text-xs opacity-60">
+                    {t(
+                      "functionsSection.guiControlVarNameHint",
+                      "Com um nome, o valor atual do campo fica disponível como variável (somente leitura) nos próximos passos e nos botões desta janela."
+                    )}
+                  </span>
+                </div>
               )}
 
               {guiControlType === "dropdown" && (

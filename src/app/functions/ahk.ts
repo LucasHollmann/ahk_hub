@@ -172,6 +172,33 @@ export function toCoordinateLiteral(value: VariableInitialValue): CoordinateLite
 }
 
 /**
+ * The AHK variable holding a Gui input control, named after the window variable it belongs to
+ * so two windows can each have a field called "nome" without colliding.
+ */
+export function guiControlVarName(guiVarName: string, controlName: string): string {
+  return `${guiVarName}_${toAhkLabel(controlName)}`;
+}
+
+/**
+ * How a Gui input control's current value is read: `.Text` for a drop-down (the selected
+ * option rather than its index), `.Value` for everything else.
+ */
+export function guiControlValueExpression(guiVarName: string, controlName: string, type: string): string {
+  return `${guiControlVarName(guiVarName, controlName)}.${type === "dropdown" ? "Text" : "Value"}`;
+}
+
+/**
+ * The owning global of a Gui-control reference, or null for any other identifier. Control
+ * values are referenced as `<guiVar>_<field>.Value`, and the dot is what marks them — a
+ * coordinate variable's half is carried in the source's `component`, never embedded in its
+ * name, so a dotted variable name can only be a control.
+ */
+export function guiControlOwnerGlobal(identifier: string): string | null {
+  const dot = identifier.indexOf(".");
+  return dot > 0 ? identifier.slice(0, dot) : null;
+}
+
+/**
  * The raw AHK identifier a non-literal argument source reads — a plain name, or `name.x` /
  * `name.y` when only one half of a coordinate variable is wanted.
  */

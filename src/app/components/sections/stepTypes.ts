@@ -29,6 +29,9 @@ import {
 import {
   argSourceExpression,
   argSourceIdentifier,
+  guiControlOwnerGlobal,
+  guiControlValueExpression,
+  guiControlVarName,
   formatAhkCallArgs,
   formatVariableInitialLiteral,
   quoteAhkString,
@@ -85,14 +88,36 @@ export type GuiControl =
       type: "edit";
       initialValue: string;
       multiline: boolean;
+      /** Names this field as a variable, so later steps can read what the user typed. */
+      varName?: string;
       x?: number;
       y?: number;
       width?: number;
       height?: number;
       color?: string;
     }
-  | { id: number; type: "checkbox"; label: string; checked: boolean; x?: number; y?: number; color?: string }
-  | { id: number; type: "dropdown"; options: string[]; x?: number; y?: number; width?: number; color?: string }
+  | {
+      id: number;
+      type: "checkbox";
+      label: string;
+      checked: boolean;
+      /** Names this field as a variable, so later steps can read whether it's ticked. */
+      varName?: string;
+      x?: number;
+      y?: number;
+      color?: string;
+    }
+  | {
+      id: number;
+      type: "dropdown";
+      options: string[];
+      /** Names this field as a variable, so later steps can read the selected option. */
+      varName?: string;
+      x?: number;
+      y?: number;
+      width?: number;
+      color?: string;
+    }
   | { id: number; type: "code"; code: string };
 
 export type Step =
@@ -297,6 +322,8 @@ export function stepLabel(t: Translate, step: Step, functions: FunctionEntry[]):
     if (step.action === "set") return `${step.targetName} := ${assignedValueText(step.value) ?? '""'}`;
     if (step.action === "increment") return `${step.targetName} += ${step.amount}`;
     if (step.action === "toggle") return `${step.targetName} := !${step.targetName}`;
+    if (step.action === "concat")
+      return `${step.targetName} := ${step.targetName} . ${assignedValueText(step.value) ?? '""'}`;
     if (step.action === "promptInput") return `${step.targetName} := InputBox("${step.prompt}")`;
     const scopeLabel =
       step.scope === "global"
@@ -348,13 +375,14 @@ export function stepLabel(t: Translate, step: Step, functions: FunctionEntry[]):
 function collectStepGlobalNames(step: Step, globalVariables: GlobalVariable[], acc: Set<string>) {
   if (step.kind === "variableAction") {
     if (step.action === "create" && step.scope === "global") acc.add(step.targetName);
-    else if (step.action === "set") {
+    else if (step.action === "set" || step.action === "concat") {
       for (const source of assignedValueSources(step.value)) {
         if (source.kind === "globalVariable") acc.add(source.variableName);
       }
     }
     if (
       (step.action === "set" ||
+        step.action === "concat" ||
         step.action === "increment" ||
         step.action === "toggle" ||
         step.action === "promptInput") &&
@@ -384,6 +412,9 @@ function collectStepGlobalNames(step: Step, globalVariables: GlobalVariable[], a
   } else if (step.kind === "createGui") {
     acc.add(step.varName);
     for (const control of step.controls) {
+      if ("varName" in control && control.varName) {
+        acc.add(guiControlVarName(step.varName, control.varName));
+      }
       if (control.type !== "button") continue;
       for (const arg of Object.values(control.onClick.args)) {
         if (arg.kind === "globalVariable") acc.add(arg.variableName);
@@ -409,9 +440,26 @@ function collectStepGlobalNames(step: Step, globalVariables: GlobalVariable[], a
   }
 }
 
+/**
+ * Declares the global behind every Gui input field a step tree *reads*, wherever the reference
+ * sits — a condition target, a call argument, a nested loop body. The references are plain
+ * identifier strings scattered across every step shape, so they're picked up in one sweep of
+ * the tree rather than re-walked shape by shape.
+ */
+function collectGuiControlOwnerGlobals(steps: Step[], acc: Set<string>) {
+  JSON.stringify(steps, (key, value) => {
+    if ((key === "variableName" || key === "targetName") && typeof value === "string") {
+      const owner = guiControlOwnerGlobal(value);
+      if (owner) acc.add(owner);
+    }
+    return value;
+  });
+}
+
 export function collectGlobalNames(steps: Step[], globalVariables: GlobalVariable[]): Set<string> {
   const acc = new Set<string>();
   for (const step of steps) collectStepGlobalNames(step, globalVariables, acc);
+  collectGuiControlOwnerGlobals(steps, acc);
   return acc;
 }
 
@@ -456,6 +504,66 @@ export function collectAllGuiVariables(steps: Step[]): HeaderParamDef[] {
     }
   }
   walk(steps);
+  return result;
+}
+
+/**
+ * Every named input field of a given "createGui" step, as read-only variables — their `key` is
+ * the AHK expression that reads the control's current value, so a reference compiles straight
+ * to `gui_x_nome.Value` wherever an argument, condition or assignment embeds it.
+ */
+function guiControlVariables(step: {
+  varName: string;
+  controls: (GuiControl | SerializedGuiControl)[];
+}): HeaderParamDef[] {
+  const result: HeaderParamDef[] = [];
+  for (const control of step.controls) {
+    if (!("varName" in control) || !control.varName) continue;
+    result.push({
+      key: guiControlValueExpression(step.varName, control.varName, control.type),
+      label: control.varName,
+      type: control.type === "checkbox" ? "boolean" : "text",
+      readOnly: true,
+    });
+  }
+  return result;
+}
+
+/** Every named Gui input field created anywhere in this function's step tree. */
+export function collectAllGuiControlVariables(steps: Step[]): HeaderParamDef[] {
+  const result: HeaderParamDef[] = [];
+  function walk(list: Step[]) {
+    for (const step of list) {
+      if (step.kind === "createGui") {
+        result.push(...guiControlVariables(step));
+      } else if (step.kind === "flowControl") {
+        walk(step.body);
+        if (step.elseBody) walk(step.elseBody);
+      }
+    }
+  }
+  walk(steps);
+  return result;
+}
+
+/** The same fields from every other saved function — Gui control variables are global, like the windows that hold them, so one function can show a form and another read what was filled in. */
+export function collectAllGuiControlVariablesAcrossFunctions(
+  functions: FunctionEntry[]
+): HeaderParamDef[] {
+  const result: HeaderParamDef[] = [];
+  function walk(list: SerializedStep[]) {
+    for (const step of list) {
+      if (step.kind === "createGui") {
+        result.push(...guiControlVariables(step));
+      } else if (step.kind === "flowControl") {
+        walk(step.body);
+        if (step.elseBody) walk(step.elseBody);
+      }
+    }
+  }
+  for (const f of functions) {
+    if (f.builder?.mode === "steps") walk(f.builder.steps);
+  }
   return result;
 }
 
@@ -597,6 +705,7 @@ function serializeGuiControl(control: GuiControl): SerializedGuiControl {
       type: "edit",
       initialValue: control.initialValue,
       multiline: control.multiline,
+      ...(control.varName ? { varName: control.varName } : {}),
       ...(control.x !== undefined ? { x: control.x } : {}),
       ...(control.y !== undefined ? { y: control.y } : {}),
       ...(control.width !== undefined ? { width: control.width } : {}),
@@ -609,6 +718,7 @@ function serializeGuiControl(control: GuiControl): SerializedGuiControl {
       type: "checkbox",
       label: control.label,
       checked: control.checked,
+      ...(control.varName ? { varName: control.varName } : {}),
       ...(control.x !== undefined ? { x: control.x } : {}),
       ...(control.y !== undefined ? { y: control.y } : {}),
       ...(control.color ? { color: control.color } : {}),
@@ -618,6 +728,7 @@ function serializeGuiControl(control: GuiControl): SerializedGuiControl {
     return {
       type: "dropdown",
       options: [...control.options],
+      ...(control.varName ? { varName: control.varName } : {}),
       ...(control.x !== undefined ? { x: control.x } : {}),
       ...(control.y !== undefined ? { y: control.y } : {}),
       ...(control.width !== undefined ? { width: control.width } : {}),
@@ -661,6 +772,7 @@ function hydrateGuiControl(control: SerializedGuiControl, nextIdRef: { current: 
       type: "edit",
       initialValue: control.initialValue,
       multiline: control.multiline ?? false,
+      ...(control.varName ? { varName: control.varName } : {}),
       ...(control.x !== undefined ? { x: control.x } : {}),
       ...(control.y !== undefined ? { y: control.y } : {}),
       ...(control.width !== undefined ? { width: control.width } : {}),
@@ -674,6 +786,7 @@ function hydrateGuiControl(control: SerializedGuiControl, nextIdRef: { current: 
       type: "checkbox",
       label: control.label,
       checked: control.checked ?? false,
+      ...(control.varName ? { varName: control.varName } : {}),
       ...(control.x !== undefined ? { x: control.x } : {}),
       ...(control.y !== undefined ? { y: control.y } : {}),
       ...(control.color ? { color: control.color } : {}),
@@ -684,6 +797,7 @@ function hydrateGuiControl(control: SerializedGuiControl, nextIdRef: { current: 
       id,
       type: "dropdown",
       options: [...(control.options ?? [])],
+      ...(control.varName ? { varName: control.varName } : {}),
       ...(control.x !== undefined ? { x: control.x } : {}),
       ...(control.y !== undefined ? { y: control.y } : {}),
       ...(control.width !== undefined ? { width: control.width } : {}),
@@ -707,6 +821,11 @@ function stepToAhkLines(step: Step, allFunctions: FunctionEntry[], indent: strin
     }
     if (step.action === "toggle") {
       return [`${indent}${step.targetName} := !${step.targetName}`];
+    }
+    if (step.action === "concat") {
+      return [
+        `${indent}${step.targetName} := ${step.targetName} . ${formatArgSourceForAssignment(step.value)}`,
+      ];
     }
     if (step.action === "promptInput") {
       return [
@@ -773,6 +892,14 @@ function stepToAhkLines(step: Step, allFunctions: FunctionEntry[], indent: strin
       if (control.type !== "button" && control.color) positionOptions.push(`c${control.color}`);
       const optionsArg = quoteAhkString(positionOptions.filter(Boolean).join(" "));
 
+      // A named input field is kept in a global of its own, so steps that run later — including
+      // a button's own handler, which fires long after this function returned — can read the
+      // value the user left in it.
+      const controlVarName = "varName" in control ? control.varName : undefined;
+      const assignment = controlVarName
+        ? `${guiControlVarName(step.varName, controlVarName)} := `
+        : "";
+
       if (control.type === "text") {
         lines.push(`${indent}${step.varName}.Add("Text", ${optionsArg}, ${quoteAhkString(control.text)})`);
       } else if (control.type === "button") {
@@ -784,12 +911,16 @@ function stepToAhkLines(step: Step, allFunctions: FunctionEntry[], indent: strin
           `${indent}${ctrlVar}.OnEvent("Click", (*) => ${menuTargetCallExpr(control.onClick, allFunctions)})`
         );
       } else if (control.type === "edit") {
-        lines.push(`${indent}${step.varName}.Add("Edit", ${optionsArg}, ${quoteAhkString(control.initialValue)})`);
+        lines.push(
+          `${indent}${assignment}${step.varName}.Add("Edit", ${optionsArg}, ${quoteAhkString(control.initialValue)})`
+        );
       } else if (control.type === "checkbox") {
-        lines.push(`${indent}${step.varName}.Add("Checkbox", ${optionsArg}, ${quoteAhkString(control.label)})`);
+        lines.push(
+          `${indent}${assignment}${step.varName}.Add("Checkbox", ${optionsArg}, ${quoteAhkString(control.label)})`
+        );
       } else {
         lines.push(
-          `${indent}${step.varName}.Add("DropDownList", ${optionsArg}, ${quoteAhkString(control.options.join("|"))})`
+          `${indent}${assignment}${step.varName}.Add("DropDownList", ${optionsArg}, ${quoteAhkString(control.options.join("|"))})`
         );
       }
     });
